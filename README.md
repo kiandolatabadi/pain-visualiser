@@ -3,7 +3,7 @@
 A language-free, interactive tool for pain communication between patient and clinician.
 The core premise: if an animation IS the pain, no translation is needed.
 
-**[Live demo →](https://kiandolatabadi.github.io/pain-visualiser/pain-visualiser.html)**
+**[Live demo →](https://kiandolatabadi.github.io/pain-visualiser/)**
 
 ---
 
@@ -238,6 +238,7 @@ The original brief called for bilingual labels. This was revised because:
 
 - `pain-visualiser.html` — the entire app: pain-type animation cards, 3D body map, patient/session
   storage and UI, comparison mode
+- `index.html` — redirects the bare site root to `pain-visualiser.html`
 - `vendor/three/` — Three.js + GLTFLoader/OrbitControls, vendored locally so the app runs fully offline
 - `male_body.glb`, `low_poly_female_body__teeth__tongue_lp.glb` — 3D body models (see Credits)
 - `manifest.json`, `sw.js`, `icons/` — PWA install + offline support
