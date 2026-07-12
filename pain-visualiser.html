@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
   <title>Pain Visualiser</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#1a4fa0">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Pain Vis">
   <style>
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 
@@ -444,8 +452,8 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/"
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/"
     }
   }
   </script>
@@ -485,6 +493,11 @@
         <div class="pp-new">
           <input id="pp-name-in" type="text" placeholder="Name or ID&#x2026;" maxlength="60">
           <button id="pp-create">+ New</button>
+        </div>
+        <div class="pp-new">
+          <button id="pp-export" style="flex:1">Export backup</button>
+          <button id="pp-import" style="flex:1">Import backup</button>
+          <input id="pp-import-file" type="file" accept="application/json" style="display:none">
         </div>
         <div id="pp-list"></div>
       </div>
@@ -1606,9 +1619,73 @@ resize();
    ══════════════════════════════════════════════════════════════════ */
 const DB = {
   _k:'pv_patients_v1',
-  load(){ try{ return JSON.parse(localStorage.getItem(this._k)||'[]'); }catch{ return []; } },
-  save(d){ localStorage.setItem(this._k, JSON.stringify(d)); },
+  _dbName:'pv_db', _store:'kv', _dbPromise:null,
+
+  _openDb(){
+    if(this._dbPromise) return this._dbPromise;
+    this._dbPromise=new Promise((resolve,reject)=>{
+      const req=indexedDB.open(this._dbName,1);
+      req.onupgradeneeded=()=>{ req.result.createObjectStore(this._store); };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+    return this._dbPromise;
+  },
+
+  async _migrateFromLocalStorageIfNeeded(){
+    const legacy=localStorage.getItem(this._k);
+    if(!legacy) return;
+    const db=await this._openDb();
+    const existing=await new Promise((resolve,reject)=>{
+      const tx=db.transaction(this._store,'readonly');
+      const req=tx.objectStore(this._store).get(this._k);
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+    if(!existing){
+      try{ await this.save(JSON.parse(legacy)); }catch(e){ console.error('[PV] migration failed',e); }
+    }
+    localStorage.removeItem(this._k);
+  },
+
+  async load(){
+    try{
+      await this._migrateFromLocalStorageIfNeeded();
+      const db=await this._openDb();
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction(this._store,'readonly');
+        const req=tx.objectStore(this._store).get(this._k);
+        req.onsuccess=()=>resolve(req.result||[]);
+        req.onerror=()=>reject(req.error);
+      });
+    }catch(e){ console.error('[PV] DB load failed',e); return []; }
+  },
+
+  async save(d){
+    const db=await this._openDb();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(this._store,'readwrite');
+      tx.objectStore(this._store).put(d,this._k);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+      tx.onabort=()=>reject(tx.error);
+    });
+  },
 };
+
+/* Saves and shows a clear warning instead of failing silently when storage is full. */
+async function persistPatients(pts){
+  try{
+    await DB.save(pts);
+    return true;
+  }catch(e){
+    console.error('[PV] Save failed',e);
+    alert('Could not save — this device may be out of storage space.\n\n'
+      +'Try "Export backup" to save your data to a file, then delete some old sessions to free up space.\n\n'
+      +'('+(e&&e.message?e.message:e)+')');
+    return false;
+  }
+}
 function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function safeEsc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
@@ -1723,8 +1800,8 @@ function showDetailView(){
   document.getElementById('pp-view-detail').style.display='';
 }
 
-function renderPatientList(){
-  const pts=DB.load(), el=document.getElementById('pp-list');
+async function renderPatientList(){
+  const pts=await DB.load(), el=document.getElementById('pp-list');
   el.innerHTML='';
   pts.forEach(pt=>{
     const row=document.createElement('div');
@@ -1736,14 +1813,14 @@ function renderPatientList(){
   });
 }
 
-function selectPatient(id){
+async function selectPatient(id){
   selectedPatientId=id;
-  renderDetailView();
+  await renderDetailView();
   showDetailView();
 }
 
-function renderDetailView(){
-  const pts=DB.load(), pt=pts.find(p=>p.id===selectedPatientId);
+async function renderDetailView(){
+  const pts=await DB.load(), pt=pts.find(p=>p.id===selectedPatientId);
   if(!pt) return;
   document.getElementById('pp-sel-name').textContent=pt.name;
   const listEl=document.getElementById('pp-sess-list');
@@ -1771,41 +1848,42 @@ function renderDetailView(){
   fill(document.getElementById('cmp-sel-b'));
 }
 
-function createPatient(name){
+async function createPatient(name){
   name=name.trim(); if(!name) return;
-  const pts=DB.load();
+  const pts=await DB.load();
   pts.push({id:genId(),name,sessions:[]});
-  DB.save(pts); renderPatientList();
+  if(await persistPatients(pts)) renderPatientList();
 }
 
-function deletePatient(id){
+async function deletePatient(id){
   if(!confirm('Delete this patient and all their sessions?')) return;
-  DB.save(DB.load().filter(p=>p.id!==id));
+  const pts=(await DB.load()).filter(p=>p.id!==id);
+  if(!(await persistPatients(pts))) return;
   if(selectedPatientId===id){ selectedPatientId=null; showListView(); }
   renderPatientList();
 }
 
-function saveSession(){
+async function saveSession(){
   if(!selectedPatientId) return;
   const label=document.getElementById('pp-sess-label').value.trim()||todayStr();
-  const pts=DB.load(), pt=pts.find(p=>p.id===selectedPatientId);
+  const pts=await DB.load(), pt=pts.find(p=>p.id===selectedPatientId);
   if(!pt) return;
   (pt.sessions=pt.sessions||[]).push(captureSession(label));
-  DB.save(pts);
+  if(!(await persistPatients(pts))) return;
   document.getElementById('pp-sess-label').value='';
   renderDetailView();
 }
 
-function deleteSession(patientId,sessId){
-  const pts=DB.load(), pt=pts.find(p=>p.id===patientId);
+async function deleteSession(patientId,sessId){
+  const pts=await DB.load(), pt=pts.find(p=>p.id===patientId);
   if(!pt) return;
   pt.sessions=(pt.sessions||[]).filter(s=>s.id!==sessId);
-  DB.save(pts); renderDetailView();
+  if(await persistPatients(pts)) renderDetailView();
 }
 
-function openPtPanel(){
-  if(selectedPatientId){ renderDetailView(); showDetailView(); }
-  else { renderPatientList(); showListView(); }
+async function openPtPanel(){
+  if(selectedPatientId){ await renderDetailView(); showDetailView(); }
+  else { await renderPatientList(); showListView(); }
   document.getElementById('pt-panel').classList.remove('hidden');
   document.getElementById('pt-btn').classList.add('active');
 }
@@ -1833,7 +1911,7 @@ document.getElementById('pp-save-sess').addEventListener('click',saveSession);
 document.getElementById('pp-sess-label').addEventListener('keydown',e=>{ if(e.key==='Enter') saveSession(); });
 document.getElementById('pp-cmp-go').addEventListener('click',async()=>{
   if(!selectedPatientId) return;
-  const pt=DB.load().find(p=>p.id===selectedPatientId); if(!pt) return;
+  const pt=(await DB.load()).find(p=>p.id===selectedPatientId); if(!pt) return;
   const sidA=document.getElementById('cmp-sel-a').value;
   const sidB=document.getElementById('cmp-sel-b').value;
   if(!sidA||!sidB||sidA===sidB){ alert('Select two different sessions.'); return; }
@@ -1843,6 +1921,45 @@ document.getElementById('pp-cmp-go').addEventListener('click',async()=>{
   await enterCompareMode(sA,sB);
 });
 document.getElementById('cmp-exit').addEventListener('click',exitCompareMode);
+
+document.getElementById('pp-export').addEventListener('click',async()=>{
+  const pts=await DB.load();
+  const blob=new Blob([JSON.stringify(pts,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`pain-visualiser-backup-${todayStr()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('pp-import').addEventListener('click',()=>{
+  document.getElementById('pp-import-file').click();
+});
+document.getElementById('pp-import-file').addEventListener('change',async(e)=>{
+  const file=e.target.files[0]; e.target.value='';
+  if(!file) return;
+  let data;
+  try{
+    data=JSON.parse(await file.text());
+    if(!Array.isArray(data)) throw new Error('File does not contain a patient list.');
+  }catch(err){
+    alert('Could not read this backup file.\n\n('+err.message+')');
+    return;
+  }
+  if(!confirm(`Import "${file.name}"?\n\nThis REPLACES all patient data currently stored in this browser (${data.length} patient(s) in the file). This cannot be undone — export a backup first if unsure.`)) return;
+  if(await persistPatients(data)){
+    selectedPatientId=null;
+    await renderPatientList();
+    showListView();
+    alert('Backup imported.');
+  }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(console.error);
+  });
+}
 
 </script>
 </body>

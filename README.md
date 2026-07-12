@@ -3,6 +3,8 @@
 A language-free, interactive tool for pain communication between patient and clinician.
 The core premise: if an animation IS the pain, no translation is needed.
 
+**[Live demo →](https://kiandolatabadi.github.io/pain-visualiser/pain-visualiser.html)**
+
 ---
 
 ## The Problem
@@ -24,10 +26,47 @@ Each pain type is represented as an interactive animation.
 The animation *behaves* the way the pain feels — the patient recognises it instinctively.
 No words required. No translation layer. Universal.
 
-Additionally, pain is painted onto a body map (not pinned), enabling:
+Pain is painted onto a 3D body map (not pinned), enabling:
 - Precise location (dermatome-level)
 - Intensity gradient across a region
-- Multi-session overlay for temporal comparison
+- Multi-session overlay for temporal comparison, side by side
+
+---
+
+## What's implemented
+
+- **16 touch-responsive pain-type animations**, grouped by clinical pattern (rhythmic, continuous,
+  intermittent, sensory/non-painful) — see [Descriptor Set](#descriptor-set--design-rationale) below
+- **3D body map** (male and female models) that the patient paints directly, with brush intensity/depth
+- **Patient records**: create a patient, save a painted session, reopen it later
+- **Session comparison**: load two sessions from the same patient side by side on a split view
+- **Backup / restore**: export the full patient database to a JSON file, import it back on any device
+- **Installable, offline-capable app** (PWA): add-to-home-screen on desktop and iOS, works with no
+  network connection once loaded
+
+All patient data is stored locally in the browser (IndexedDB) — nothing is sent to a server, there is
+no backend, and no two devices share data automatically. Use the export/import buttons in the
+Patients panel to move or back up data.
+
+---
+
+## Tech stack
+
+- Vanilla JS, no build step, no framework
+- [Three.js](https://threejs.org) (r0.157, vendored locally in `vendor/`) for the 3D body map and
+  painting/raycasting
+- IndexedDB for local, offline patient/session storage
+- A service worker (`sw.js`) + `manifest.json` for PWA installability and offline caching
+
+---
+
+## Running it locally
+
+Double-click **`Launch Pain Visualiser.command`** — it starts a local static server and opens the app
+in Chrome. (A local server is required because the browser blocks loading local `.glb` files directly
+over `file://`.)
+
+To stop it, close the Terminal window it opens.
 
 ---
 
@@ -188,7 +227,7 @@ The original brief called for bilingual labels. This was revised because:
 - LLM integration for auto-summary generation
 - EHR / EMR export
 - Dermatome overlay map (named nerve regions)
-- Multi-session comparison view
+- Cross-device sync (data is local to each browser/device — see [What's implemented](#whats-implemented))
 - Affective descriptors (tiring, fearful, sickening) — these require a different design approach
 - Pediatric version (simplified icons, different interaction model)
 - Sound / haptic feedback
@@ -197,8 +236,25 @@ The original brief called for bilingual labels. This was revised because:
 
 ## Files
 
-- `pain-visualiser.html` — Step 1: interactive pain type cards
+- `pain-visualiser.html` — the entire app: pain-type animation cards, 3D body map, patient/session
+  storage and UI, comparison mode
+- `vendor/three/` — Three.js + GLTFLoader/OrbitControls, vendored locally so the app runs fully offline
+- `male_body.glb`, `low_poly_female_body__teeth__tongue_lp.glb` — 3D body models (see Credits)
+- `manifest.json`, `sw.js`, `icons/` — PWA install + offline support
+- `Launch Pain Visualiser.command` — double-click launcher for local use on macOS
 - `README.md` — this file
+
+---
+
+## Credits
+
+The 3D body models are used under [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/), which
+requires attribution:
+
+- **Male Body** by [Alexander Antipov](https://sketchfab.com/Dessen) —
+  [source](https://sketchfab.com/3d-models/male-body-15a422001834483c9750ce6117d59cc1)
+- **Low poly female body | Teeth + tongue lp** by [mezuna](https://sketchfab.com/mezuna) —
+  [source](https://sketchfab.com/3d-models/low-poly-female-body-teeth-tongue-lp-16201ebf4bca4395b3fe1931cc30c801)
 
 ---
 
