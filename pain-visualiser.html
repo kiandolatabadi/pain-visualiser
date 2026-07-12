@@ -281,6 +281,164 @@
     }
   
 
+
+    /* ── Patient button ─────────────────────────────────────── */
+    #pt-btn {
+      position:absolute; top:0.9rem; left:0.9rem; z-index:22;
+      display:flex; align-items:center; gap:0.35rem;
+      padding:0.32rem 0.75rem; font-size:0.67rem; font-weight:600;
+      letter-spacing:0.06em; text-transform:uppercase;
+      background:rgba(255,255,255,0.92); border:1px solid var(--border);
+      border-radius:20px; color:var(--dim); cursor:pointer;
+      backdrop-filter:blur(8px); box-shadow:0 1px 4px rgba(0,0,0,0.07);
+      transition:all 0.15s;
+    }
+    #pt-btn:hover { color:var(--text); border-color:#aaa; box-shadow:0 2px 8px rgba(0,0,0,0.11); }
+    #pt-btn.active { color:var(--text); border-color:#999; background:rgba(255,255,255,0.98); }
+    #pt-btn::before { content:''; display:block; width:6px; height:6px;
+                      border-radius:50%; background:var(--dim); opacity:0.45; }
+    #pt-btn.active::before { background:#3a7bd5; opacity:1; }
+
+    /* ── Patient panel ──────────────────────────────────────── */
+    #pt-panel {
+      position:absolute; left:0.9rem; top:3rem; z-index:30;
+      width:264px;
+      background:rgba(248,248,244,0.98); backdrop-filter:blur(12px);
+      border:1px solid rgba(0,0,0,0.12); border-radius:16px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.06);
+      font-size:0.78rem; overflow:visible;
+    }
+    #pt-panel.hidden { display:none; }
+
+    .pp-head {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0.65rem 0.9rem 0.55rem;
+      border-bottom:1px solid rgba(0,0,0,0.08);
+    }
+    .pp-title { font-weight:700; font-size:0.66rem; letter-spacing:0.12em;
+                text-transform:uppercase; color:#888; }
+    .pp-x { background:none; border:none; cursor:pointer; font-size:1rem;
+             color:#bbb; padding:0 0.15rem; line-height:1; border-radius:50%;
+             width:20px; height:20px; display:flex; align-items:center; justify-content:center; }
+    .pp-x:hover { color:#555; background:rgba(0,0,0,0.06); }
+    .pp-back { background:none; border:none; cursor:pointer; font-size:0.9rem;
+               color:#888; padding:0 0.15rem; line-height:1; border-radius:50%;
+               width:20px; height:20px; display:flex; align-items:center; justify-content:center; }
+    .pp-back:hover { color:#1a4fa0; background:rgba(58,123,213,0.1); }
+
+    .pp-new { display:flex; gap:0.4rem; padding:0.55rem 0.75rem;
+              border-bottom:1px solid rgba(0,0,0,0.06); }
+    .pp-new input {
+      flex:1; border:1px solid rgba(0,0,0,0.15); border-radius:9px;
+      padding:0.3rem 0.55rem; font-size:0.72rem; background:#fff; outline:none;
+      transition:border-color 0.15s;
+    }
+    .pp-new input:focus { border-color:#3a7bd5; box-shadow:0 0 0 2px rgba(58,123,213,0.12); }
+    .pp-new button {
+      padding:0.28rem 0.65rem; font-size:0.69rem; font-weight:600;
+      border:1px solid rgba(0,0,0,0.18); border-radius:9px;
+      background:#fff; cursor:pointer; white-space:nowrap; color:#444;
+      transition:all 0.12s;
+    }
+    .pp-new button:hover { background:#f0f0f0; border-color:#999; }
+
+    #pp-list { overflow-y:auto; max-height:148px; }
+    .pp-pt-row {
+      display:flex; align-items:center; padding:0.42rem 0.75rem;
+      cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04);
+      transition:background 0.1s;
+    }
+    .pp-pt-row:last-child { border-bottom:none; }
+    .pp-pt-row:hover { background:rgba(0,0,0,0.035); }
+    .pp-pt-row.active { background:rgba(58,123,213,0.08); }
+    .pp-pt-name { flex:1; font-size:0.75rem; overflow:hidden;
+                  text-overflow:ellipsis; white-space:nowrap; color:#333; }
+    .pp-pt-row.active .pp-pt-name { font-weight:600; color:#1a4fa0; }
+    .pp-pt-del { background:none; border:none; cursor:pointer;
+                 color:#ccc; font-size:0.8rem; padding:0 0.15rem;
+                 border-radius:4px; transition:color 0.12s; }
+    .pp-pt-del:hover { color:#c62828; }
+
+    #pp-sessions {
+      display:flex; flex-direction:column;
+    }
+    #pp-sess-list { overflow-y:auto; max-height:130px; }
+    .pp-sess-row { display:flex; align-items:center; gap:0.35rem;
+                   padding:0.32rem 0.75rem;
+                   border-bottom:1px solid rgba(0,0,0,0.04); }
+    .pp-sess-row:last-child { border-bottom:none; }
+    .pp-sess-date { color:#aaa; font-size:0.67rem;
+                    font-variant-numeric:tabular-nums; flex-shrink:0; }
+    .pp-sess-lbl { flex:1; font-size:0.72rem; overflow:hidden;
+                   text-overflow:ellipsis; white-space:nowrap; color:#444; }
+    .pp-sess-load { padding:0.1rem 0.45rem; font-size:0.64rem; font-weight:600;
+                    border:1px solid rgba(0,0,0,0.18); border-radius:6px;
+                    background:#fff; cursor:pointer; flex-shrink:0; color:#444;
+                    transition:all 0.12s; }
+    .pp-sess-load:hover { border-color:#3a7bd5; color:#3a7bd5; }
+    .pp-sess-del { background:none; border:none; cursor:pointer;
+                   color:#ccc; font-size:0.78rem; padding:0; flex-shrink:0;
+                   transition:color 0.12s; }
+    .pp-sess-del:hover { color:#c62828; }
+
+    .pp-save-row { display:flex; gap:0.4rem; padding:0.5rem 0.75rem;
+                   border-top:1px solid rgba(0,0,0,0.08); }
+    .pp-save-row input {
+      flex:1; border:1px solid rgba(0,0,0,0.15); border-radius:9px;
+      padding:0.28rem 0.48rem; font-size:0.7rem; background:#fff; outline:none;
+      transition:border-color 0.15s;
+    }
+    .pp-save-row input:focus { border-color:#3a7bd5; box-shadow:0 0 0 2px rgba(58,123,213,0.12); }
+    .pp-save-row button {
+      padding:0.28rem 0.7rem; font-size:0.69rem; font-weight:600;
+      background:#1a4fa0; color:#fff; border:none; border-radius:9px; cursor:pointer;
+      transition:background 0.12s;
+    }
+    .pp-save-row button:hover { background:#2563c0; }
+
+    .pp-cmp-row {
+      display:flex; align-items:center; gap:0.28rem;
+      padding:0.38rem 0.75rem 0.6rem;
+      border-top:1px solid rgba(0,0,0,0.06);
+    }
+    .pp-cmp-row select {
+      flex:1; border:1px solid rgba(0,0,0,0.15); border-radius:7px;
+      padding:0.22rem 0.25rem; font-size:0.65rem; background:#fff; min-width:0;
+      outline:none;
+    }
+    .pp-cmp-vs { color:#bbb; font-size:0.65rem; flex-shrink:0; }
+    .pp-cmp-row button {
+      padding:0.24rem 0.6rem; font-size:0.72rem; font-weight:700;
+      background:#1a4fa0; color:#fff; border:none; border-radius:8px;
+      cursor:pointer; flex-shrink:0; transition:background 0.12s;
+    }
+    .pp-cmp-row button:hover { background:#2563c0; }
+
+    /* ── Compare bar + divider ──────────────────────────────── */
+    #cmp-bar {
+      position:absolute; top:0; left:0; right:0; z-index:25;
+      display:flex; align-items:center; gap:0.6rem;
+      padding:0.45rem 1rem;
+      background:rgba(248,248,244,0.97); backdrop-filter:blur(10px);
+      border-bottom:1px solid rgba(0,0,0,0.1); font-size:0.73rem;
+      box-shadow:0 1px 6px rgba(0,0,0,0.06);
+    }
+    #cmp-bar.hidden { display:none; }
+    #cmp-label-a { font-weight:600; color:#1a4fa0; }
+    #cmp-label-b { font-weight:600; color:#b05a10; }
+    .cmp-vs { color:#bbb; font-size:0.65rem; }
+    #cmp-exit {
+      margin-left:auto; padding:0.24rem 0.72rem; font-size:0.66rem; font-weight:600;
+      border:1px solid rgba(0,0,0,0.15); border-radius:20px;
+      background:#fff; cursor:pointer; color:#888;
+      transition:all 0.15s;
+    }
+    #cmp-exit:hover { color:#c62828; border-color:#c62828; background:#fff5f5; }
+    #cmp-divider {
+      position:absolute; left:calc(50% - 1px); top:0; bottom:0;
+      width:2px; background:rgba(0,0,0,0.13); pointer-events:none;
+      display:none; z-index:24;
+    }
     </style>
 
   <script type="importmap">
@@ -299,11 +457,61 @@
   <!-- Full-screen body map (behind everything) -->
   <div id="map-panel">
     <canvas id="three-canvas"></canvas>
+    <button id="pt-btn">Patients</button>
     <div id="gender-tog">
       <button class="gtog on" data-g="male">&#9794; Male</button>
       <button class="gtog" data-g="female">&#9792; Female</button>
     </div>
     <div id="map-hint">← Select a pain type on the right<br>then paint it on the body</div>
+
+    <!-- Compare bar -->
+    <div id="cmp-bar" class="hidden">
+      <span id="cmp-label-a"></span>
+      <span class="cmp-vs">vs</span>
+      <span id="cmp-label-b"></span>
+      <button id="cmp-exit">Exit compare</button>
+    </div>
+    <div id="cmp-divider"></div>
+
+    <!-- Patient panel -->
+    <div id="pt-panel" class="hidden">
+
+      <!-- VIEW A: patient list -->
+      <div id="pp-view-list">
+        <div class="pp-head">
+          <span class="pp-title">Patients</span>
+          <button class="pp-x" id="pp-close">&#xd7;</button>
+        </div>
+        <div class="pp-new">
+          <input id="pp-name-in" type="text" placeholder="Name or ID&#x2026;" maxlength="60">
+          <button id="pp-create">+ New</button>
+        </div>
+        <div id="pp-list"></div>
+      </div>
+
+      <!-- VIEW B: patient detail -->
+      <div id="pp-view-detail" style="display:none">
+        <div class="pp-head">
+          <button class="pp-back" id="pp-back">&#x2190;</button>
+          <span class="pp-title" id="pp-sel-name" style="flex:1;text-align:center"></span>
+          <button class="pp-x" id="pp-close-b">&#xd7;</button>
+        </div>
+        <div id="pp-sessions">
+          <div id="pp-sess-list"></div>
+          <div class="pp-save-row">
+            <input id="pp-sess-label" type="text" placeholder="Label (default: today)">
+            <button id="pp-save-sess">Save</button>
+          </div>
+          <div class="pp-cmp-row">
+            <select id="cmp-sel-a"><option value="">Session A</option></select>
+            <span class="pp-cmp-vs">vs</span>
+            <select id="cmp-sel-b"><option value="">Session B</option></select>
+            <button id="pp-cmp-go">&#x2192;</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <!-- Floating cards panel -->
@@ -817,8 +1025,10 @@ function resize(){
   const h = cvEl.parentElement.clientHeight;
   if(w<1||h<1) return;
   renderer.setSize(w, h);
-  camera.aspect = w/h;
-  camera.updateProjectionMatrix();
+  if(!compareActive){
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+  }
 }
 new ResizeObserver(resize).observe(cvEl.parentElement);
 
@@ -1247,6 +1457,7 @@ cvEl.addEventListener('pointerleave', ()=>{
 });
 
 cvEl.addEventListener('pointerdown', e=>{
+  if(compareActive){ return; }
   if(e.button !== 0){ updateRing(e.clientX, e.clientY); return; }
   raycaster.setFromCamera(ndcFromEvent(e), camera);
   const hits = raycaster.intersectObjects(bodyParts, false);
@@ -1364,12 +1575,274 @@ document.getElementById('clear-btn').addEventListener('click',()=>{
 });
 
 /* ── Render loop ─────────────────────────────────────────────── */
+let compareActive = false;
+let compareSceneB = null;
 resize();
 (function animate(){
   requestAnimationFrame(animate);
   controls.update();
-  renderer.render(scene, camera);
+  if(compareActive && compareSceneB){
+    const el = renderer.domElement;
+    const w = el.width, h = el.height, hw = Math.floor(w/2);
+    renderer.setScissorTest(true);
+    renderer.setScissor(0, 0, hw, h);
+    renderer.setViewport(0, 0, hw, h);
+    camera.aspect = hw/h; camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+    renderer.setScissor(hw, 0, w-hw, h);
+    renderer.setViewport(hw, 0, w-hw, h);
+    camera.aspect = (w-hw)/h; camera.updateProjectionMatrix();
+    renderer.render(compareSceneB, camera);
+    renderer.setScissorTest(false);
+  } else {
+    renderer.render(scene, camera);
+  }
 })();
+
+
+
+/* ══════════════════════════════════════════════════════════════════
+   PATIENT STORAGE
+   ══════════════════════════════════════════════════════════════════ */
+const DB = {
+  _k:'pv_patients_v1',
+  load(){ try{ return JSON.parse(localStorage.getItem(this._k)||'[]'); }catch{ return []; } },
+  save(d){ localStorage.setItem(this._k, JSON.stringify(d)); },
+};
+function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function safeEsc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function captureSession(label){
+  const tex={};
+  for(const m of bodyParts) tex[m.userData.name]=m.userData.cvD.toDataURL('image/jpeg',0.65);
+  return { id:genId(), date:todayStr(), label:label||todayStr(), gender:activeGender, textures:tex };
+}
+
+function restoreSession(sess){
+  if(sess.gender!==activeGender){
+    switchGender(sess.gender);
+    document.querySelectorAll('.gtog').forEach(b=>b.classList.toggle('on',b.dataset.g===sess.gender));
+  }
+  for(const mesh of modelData[sess.gender].parts){
+    const url=sess.textures[mesh.userData.name]; if(!url) continue;
+    const img=new Image();
+    img.onload=()=>{
+      const {ctx,ctxS}=mesh.userData;
+      ctx.fillStyle=SKIN_STR; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+      ctx.drawImage(img,0,0);
+      ctxS.clearRect(0,0,TEX_SIZE,TEX_SIZE);
+      mesh.userData._strokeActive=false;
+      rebuildDisplay(mesh);
+    };
+    img.src=url;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   COMPARISON MODE  (scissor — same exact viewpoint on both sides)
+   ══════════════════════════════════════════════════════════════════ */
+function addSceneLights(s){
+  s.add(new THREE.AmbientLight(0xffffff,0.75));
+  const k=new THREE.DirectionalLight(0xfff8ee,1.3); k.position.set(4,14,10); s.add(k);
+  const f=new THREE.DirectionalLight(0xeeeeff,0.55); f.position.set(-7,5,-6); s.add(f);
+  const b=new THREE.DirectionalLight(0xffffff,0.18); b.position.set(0,-6,8); s.add(b);
+}
+
+async function buildCompareScene(sess){
+  compareSceneB=new THREE.Scene();
+  compareSceneB.fog=new THREE.FogExp2(0xededea,0.009);
+  addSceneLights(compareSceneB);
+  const modelClone=modelData[sess.gender].scene.clone(true);
+  modelClone.visible=true;
+  const promises=[];
+  modelClone.traverse(child=>{
+    if(!child.isMesh) return;
+    const mat=new THREE.MeshPhongMaterial({specular:0x221100,shininess:18,side:THREE.DoubleSide});
+    child.material=mat;
+    const url=sess.textures[child.userData.name||child.name];
+    if(url) promises.push(new Promise(res=>{
+      const img=new Image();
+      img.onload=()=>{
+        const cv=document.createElement('canvas'); cv.width=cv.height=TEX_SIZE;
+        cv.getContext('2d').drawImage(img,0,0);
+        mat.map=new THREE.CanvasTexture(cv); mat.needsUpdate=true; res();
+      };
+      img.src=url;
+    }));
+  });
+  compareSceneB.add(modelClone);
+  return Promise.all(promises);
+}
+
+function disposeCompareScene(){
+  if(!compareSceneB) return;
+  compareSceneB.traverse(o=>{
+    if(!o.isMesh) return;
+    o.material?.map?.dispose(); o.material?.dispose();
+    /* geometry is shared — do NOT dispose */
+  });
+  compareSceneB=null;
+}
+
+async function enterCompareMode(sA,sB){
+  restoreSession(sA);
+  await buildCompareScene(sB);
+  compareActive=true;
+  document.getElementById('cmp-bar').classList.remove('hidden');
+  document.getElementById('cmp-divider').style.display='block';
+  document.getElementById('cmp-label-a').textContent=sA.label+' · '+sA.date;
+  document.getElementById('cmp-label-b').textContent=sB.label+' · '+sB.date;
+  document.getElementById('cards-panel').style.display='none';
+  document.getElementById('paint-bar').style.display='none';
+}
+
+function exitCompareMode(){
+  compareActive=false;
+  disposeCompareScene();
+  document.getElementById('cmp-bar').classList.add('hidden');
+  document.getElementById('cmp-divider').style.display='none';
+  const w=renderer.domElement.width, h=renderer.domElement.height;
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+  renderer.setViewport(0,0,w,h);
+  document.getElementById('cards-panel').style.display='';
+  document.getElementById('paint-bar').style.display='';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PATIENT PANEL UI  (two-view: list → detail)
+   ══════════════════════════════════════════════════════════════════ */
+let selectedPatientId=null;
+
+function showListView(){
+  document.getElementById('pp-view-list').style.display='';
+  document.getElementById('pp-view-detail').style.display='none';
+}
+function showDetailView(){
+  document.getElementById('pp-view-list').style.display='none';
+  document.getElementById('pp-view-detail').style.display='';
+}
+
+function renderPatientList(){
+  const pts=DB.load(), el=document.getElementById('pp-list');
+  el.innerHTML='';
+  pts.forEach(pt=>{
+    const row=document.createElement('div');
+    row.className='pp-pt-row';
+    row.innerHTML=`<span class="pp-pt-name">${safeEsc(pt.name)}</span><button class="pp-pt-del">&#xd7;</button>`;
+    row.querySelector('.pp-pt-name').addEventListener('click',()=>selectPatient(pt.id));
+    row.querySelector('.pp-pt-del').addEventListener('click',e=>{e.stopPropagation();deletePatient(pt.id);});
+    el.appendChild(row);
+  });
+}
+
+function selectPatient(id){
+  selectedPatientId=id;
+  renderDetailView();
+  showDetailView();
+}
+
+function renderDetailView(){
+  const pts=DB.load(), pt=pts.find(p=>p.id===selectedPatientId);
+  if(!pt) return;
+  document.getElementById('pp-sel-name').textContent=pt.name;
+  const listEl=document.getElementById('pp-sess-list');
+  listEl.innerHTML='';
+  (pt.sessions||[]).slice().reverse().forEach(sess=>{
+    const row=document.createElement('div');
+    row.className='pp-sess-row';
+    row.innerHTML=
+      `<span class="pp-sess-date">${sess.date}</span>`+
+      `<span class="pp-sess-lbl" title="${safeEsc(sess.label)}">${safeEsc(sess.label)}</span>`+
+      `<button class="pp-sess-load">Load</button>`+
+      `<button class="pp-sess-del">&#xd7;</button>`;
+    row.querySelector('.pp-sess-load').addEventListener('click',()=>{restoreSession(sess);closePtPanel();});
+    row.querySelector('.pp-sess-del').addEventListener('click',()=>deleteSession(pt.id,sess.id));
+    listEl.appendChild(row);
+  });
+  const fill=sel=>{
+    sel.innerHTML='<option value="">&#x2014; session &#x2014;</option>';
+    (pt.sessions||[]).slice().reverse().forEach(s=>{
+      const o=document.createElement('option');
+      o.value=s.id; o.textContent=s.label+' '+s.date; sel.appendChild(o);
+    });
+  };
+  fill(document.getElementById('cmp-sel-a'));
+  fill(document.getElementById('cmp-sel-b'));
+}
+
+function createPatient(name){
+  name=name.trim(); if(!name) return;
+  const pts=DB.load();
+  pts.push({id:genId(),name,sessions:[]});
+  DB.save(pts); renderPatientList();
+}
+
+function deletePatient(id){
+  if(!confirm('Delete this patient and all their sessions?')) return;
+  DB.save(DB.load().filter(p=>p.id!==id));
+  if(selectedPatientId===id){ selectedPatientId=null; showListView(); }
+  renderPatientList();
+}
+
+function saveSession(){
+  if(!selectedPatientId) return;
+  const label=document.getElementById('pp-sess-label').value.trim()||todayStr();
+  const pts=DB.load(), pt=pts.find(p=>p.id===selectedPatientId);
+  if(!pt) return;
+  (pt.sessions=pt.sessions||[]).push(captureSession(label));
+  DB.save(pts);
+  document.getElementById('pp-sess-label').value='';
+  renderDetailView();
+}
+
+function deleteSession(patientId,sessId){
+  const pts=DB.load(), pt=pts.find(p=>p.id===patientId);
+  if(!pt) return;
+  pt.sessions=(pt.sessions||[]).filter(s=>s.id!==sessId);
+  DB.save(pts); renderDetailView();
+}
+
+function openPtPanel(){
+  if(selectedPatientId){ renderDetailView(); showDetailView(); }
+  else { renderPatientList(); showListView(); }
+  document.getElementById('pt-panel').classList.remove('hidden');
+  document.getElementById('pt-btn').classList.add('active');
+}
+function closePtPanel(){
+  document.getElementById('pt-panel').classList.add('hidden');
+  document.getElementById('pt-btn').classList.remove('active');
+}
+
+/* ── Event wiring ── */
+document.getElementById('pt-btn').addEventListener('click',()=>
+  document.getElementById('pt-panel').classList.contains('hidden')?openPtPanel():closePtPanel()
+);
+document.getElementById('pp-close').addEventListener('click',closePtPanel);
+document.getElementById('pp-close-b').addEventListener('click',closePtPanel);
+document.getElementById('pp-back').addEventListener('click',()=>{
+  selectedPatientId=null; renderPatientList(); showListView();
+});
+document.getElementById('pp-create').addEventListener('click',()=>{
+  const i=document.getElementById('pp-name-in'); createPatient(i.value); i.value='';
+});
+document.getElementById('pp-name-in').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ createPatient(e.target.value); e.target.value=''; }
+});
+document.getElementById('pp-save-sess').addEventListener('click',saveSession);
+document.getElementById('pp-sess-label').addEventListener('keydown',e=>{ if(e.key==='Enter') saveSession(); });
+document.getElementById('pp-cmp-go').addEventListener('click',async()=>{
+  if(!selectedPatientId) return;
+  const pt=DB.load().find(p=>p.id===selectedPatientId); if(!pt) return;
+  const sidA=document.getElementById('cmp-sel-a').value;
+  const sidB=document.getElementById('cmp-sel-b').value;
+  if(!sidA||!sidB||sidA===sidB){ alert('Select two different sessions.'); return; }
+  const sA=pt.sessions.find(s=>s.id===sidA), sB=pt.sessions.find(s=>s.id===sidB);
+  if(!sA||!sB) return;
+  closePtPanel();
+  await enterCompareMode(sA,sB);
+});
+document.getElementById('cmp-exit').addEventListener('click',exitCompareMode);
 
 </script>
 </body>
