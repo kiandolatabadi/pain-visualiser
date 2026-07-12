@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>Pain Visualiser</title>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+    :root {
+      --bg:#f0f0ec;
+      --surface:#ffffff;
+      --border:#dcdce8;
+      --dim:#8888aa;
+      --text:#1a1a30;
+      --subtext:#55558a;
+      --map-accent:#666;
+    }
+
+    html, body { height:100%; overflow:hidden; font-size:16px; }
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      height:100vh;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    /* ── ROOT LAYOUT ─────────────────────────────────────────── */
+    #app { position:relative; width:100vw; height:100vh; overflow:hidden; }
+
+    /* Body map fills entire screen */
+    #map-panel {
+      position:absolute; inset:0;
+      display:flex; flex-direction:column;
+      background:var(--bg);
+    }
+    #three-canvas { flex:1; display:block; width:100%; outline:none; }
+    #map-hint {
+      position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      font-size:1rem; letter-spacing:0.18em; text-transform:uppercase;
+      color:var(--dim); pointer-events:none; transition:opacity 0.4s;
+      text-align:center; line-height:2.4;
+    }
+    #map-hint.hidden { opacity:0; }
+
+    /* ── FLOATING CARDS PANEL ────────────────────────────────── */
+    #cards-wrapper {
+      position:absolute; z-index:20;
+      /* Centered initially */
+      left:50%; top:50%;
+      transform:translate(-50%,-50%);
+      width:min(96vw, 1180px);
+      background:rgba(242,242,238,0.97);
+      border-radius:18px;
+      box-shadow:0 10px 60px rgba(0,0,0,0.16);
+      backdrop-filter:blur(10px);
+      -webkit-backdrop-filter:blur(10px);
+      max-height:88vh;
+      overflow-y:auto;
+      overflow-x:hidden;
+      transition:width 0.5s cubic-bezier(0.4,0,0.2,1),
+                 top 0.5s cubic-bezier(0.4,0,0.2,1),
+                 left 0.5s cubic-bezier(0.4,0,0.2,1),
+                 right 0.5s cubic-bezier(0.4,0,0.2,1),
+                 transform 0.5s cubic-bezier(0.4,0,0.2,1),
+                 box-shadow 0.3s;
+    }
+    #cards-wrapper::-webkit-scrollbar { width:4px; }
+    #cards-wrapper::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+    body.has-selection #cards-wrapper {
+      left:auto; right:1rem; top:1rem;
+      transform:none;
+      width:380px;
+      max-height:calc(100vh - 2rem);
+    }
+
+    #cards-panel { padding:2rem 1.8rem 3rem; }
+    body.has-selection #cards-panel { padding:1.2rem 1rem 2.5rem; }
+
+    /* ── HEADER ─────────────────────────────────────────────── */
+    header { margin-bottom:2rem; }
+    header h1 {
+      font-size:0.9rem; font-weight:400; letter-spacing:0.42em;
+      text-transform:uppercase; color:var(--text);
+    }
+    header p {
+      margin-top:0.5rem; font-size:0.8rem; color:var(--dim); line-height:1.6;
+    }
+    body.has-selection header { margin-bottom:1rem; }
+    body.has-selection header h1 { font-size:0.72rem; }
+    body.has-selection header p { display:none; }
+
+    /* ── SECTION HEADERS ────────────────────────────────────── */
+    .section { margin-bottom:1.8rem; }
+    .sh {
+      display:flex; align-items:baseline; gap:0.5rem;
+      margin-bottom:0.8rem; padding-bottom:0.32rem;
+      border-bottom:1.5px solid var(--border);
+    }
+    .st { font-size:0.72rem; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--text); }
+    .sd { font-size:0.68rem; color:var(--dim); }
+    body.has-selection .section { margin-bottom:1rem; }
+    body.has-selection .st { font-size:0.6rem; }
+    body.has-selection .sd { display:none; }
+
+    /* ── CARDS GRID ─────────────────────────────────────────── */
+    .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0.75rem; }
+    body.has-selection .grid { grid-template-columns:repeat(2,1fr); gap:0.4rem; }
+
+    .card {
+      border-radius:12px; border:1.5px solid var(--border);
+      background:var(--surface);
+      overflow:hidden; user-select:none; position:relative;
+      transition:border-color 0.2s, box-shadow 0.2s, opacity 0.35s;
+      box-shadow:0 2px 8px rgba(0,0,0,0.06);
+      cursor:pointer;
+    }
+    .card:hover { border-color:#b8b8d0; box-shadow:0 4px 16px rgba(0,0,0,0.10); }
+    .card.faded { opacity:0.18; pointer-events:none; }
+    .card.selected {
+      border-color:var(--accent,#888);
+      box-shadow:0 0 0 2.5px var(--accent,#888), 0 6px 24px rgba(0,0,0,0.12);
+    }
+    .card.err { border-color:#f44 !important; }
+
+    .cw { position:relative; width:100%; padding-bottom:100%; }
+    .cw canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+    .lbl {
+      padding:0.4rem 0.6rem; font-size:0.68rem; letter-spacing:0.10em;
+      text-transform:uppercase; color:var(--dim); text-align:center;
+      border-top:1px solid var(--border); transition:color 0.2s;
+    }
+    .card.selected .lbl { color:var(--accent,#888); font-weight:600; }
+    body.has-selection .lbl { font-size:0.58rem; padding:0.3rem 0.4rem; }
+
+    /* SELECT BUTTON — prominent rounded box */
+    .sel {
+      display:block; width:100%;
+      padding:0.65rem 1rem; font-size:0.78rem;
+      font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+      background:var(--bg); border:none;
+      border-top:1.5px solid var(--border);
+      color:var(--subtext); cursor:pointer;
+      transition:background 0.18s, color 0.18s;
+      border-radius:0 0 11px 11px;
+    }
+    .sel:hover {
+      background:color-mix(in srgb, var(--accent,#888) 10%, #fff);
+      color:var(--accent,#333);
+    }
+    .sel.on { background:var(--accent,#555); color:#fff; }
+    body.has-selection .sel { font-size:0.65rem; padding:0.45rem 0.6rem; }
+
+    /* ── PAINT BAR (bottom, appears on selection) ───────────── */
+    #paint-bar {
+      position:absolute; z-index:25;
+      bottom:1.2rem; left:1.2rem; right:1.2rem;
+      display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap;
+      background:rgba(255,255,255,0.97);
+      border-radius:16px; padding:0.85rem 1.4rem;
+      box-shadow:0 4px 30px rgba(0,0,0,0.14);
+      backdrop-filter:blur(8px);
+      opacity:0; transform:translateY(18px);
+      pointer-events:none;
+      transition:opacity 0.4s ease, transform 0.4s ease;
+      border:1.5px solid var(--border);
+    }
+    body.has-selection #paint-bar {
+      opacity:1; transform:translateY(0); pointer-events:auto;
+    }
+
+    /* Type indicator */
+    #type-ind { display:flex; align-items:center; gap:0.6rem; flex-shrink:0; }
+    #type-dot {
+      width:14px; height:14px; border-radius:50%;
+      background:var(--border); transition:background 0.3s; flex-shrink:0;
+      box-shadow:0 1px 4px rgba(0,0,0,0.12);
+    }
+    #type-name {
+      font-size:0.78rem; font-weight:600; letter-spacing:0.08em;
+      text-transform:uppercase; color:var(--dim); white-space:nowrap;
+      transition:color 0.3s;
+    }
+    #type-name.live { color:var(--text); }
+
+    /* Separator */
+    .bar-sep {
+      width:1.5px; height:28px; background:var(--border); flex-shrink:0;
+    }
+
+    /* Depth buttons */
+    #depth-bar { display:flex; gap:0.4rem; }
+    .dep {
+      display:flex; align-items:center; gap:0.4rem;
+      padding:0.42rem 0.85rem;
+      font-size:0.68rem; font-weight:500; letter-spacing:0.09em; text-transform:uppercase;
+      border:2px solid var(--border); border-radius:24px;
+      background:var(--bg); color:var(--dim);
+      cursor:pointer; transition:all 0.18s; white-space:nowrap;
+    }
+    .dep:hover { color:var(--text); border-color:var(--dim); background:#fff; }
+    .dep.on { color:#fff; border-color:transparent; background:var(--map-accent); }
+    .dico {
+      width:12px; height:12px; border-radius:50%; flex-shrink:0; display:inline-block;
+    }
+    .dep[data-d="skin"] .dico    { background:currentColor; width:8px; height:8px; }
+    .dep[data-d="sub"] .dico     { background:radial-gradient(circle at 35% 35%, #fff 0%, currentColor 80%); border:1.5px solid currentColor; }
+    .dep[data-d="muscular"] .dico{ background:repeating-linear-gradient(-45deg,currentColor,currentColor 1.5px,transparent 1.5px,transparent 3.5px); border:1px solid currentColor; }
+    .dep[data-d="visceral"] .dico{ background:radial-gradient(circle, currentColor 20%, transparent 75%); width:14px; height:14px; filter:blur(0.8px); }
+    .dep[data-d="eraser"] .dico { background:transparent; border:1.5px dashed currentColor; border-radius:50%; }
+
+    /* Brush + Intensity sliders */
+    .ctrl-grp { display:flex; align-items:center; gap:0.7rem; }
+    .ctrl-lbl { font-size:0.68rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim); white-space:nowrap; }
+    .ctrl-val { font-size:0.68rem; font-weight:700; color:var(--text); min-width:1.8em; }
+    input[type=range].pslider {
+      width:100px; height:5px; cursor:pointer;
+      accent-color:var(--map-accent,#666);
+    }
+
+    /* Clear button */
+    #clear-btn {
+      margin-left:auto;
+      padding:0.44rem 1rem; font-size:0.7rem; font-weight:600;
+      letter-spacing:0.1em; text-transform:uppercase;
+      background:transparent; border:2px solid var(--border);
+      border-radius:24px; color:var(--dim); cursor:pointer;
+      transition:color 0.18s, border-color 0.18s;
+    }
+    #clear-btn:hover { color:#c62828; border-color:#c62828; }
+
+    /* ── HOVER TOOLTIP ──────────────────────────────────────── */
+    #hover-tip {
+      position:fixed; display:none; z-index:200;
+      background:#fff; border:1.5px solid var(--border);
+      border-radius:10px; padding:0.55rem 0.85rem;
+      box-shadow:0 6px 28px rgba(0,0,0,0.14);
+      pointer-events:none; min-width:145px;
+    }
+    .tc { display:flex; align-items:center; gap:0.5rem; padding:0.18rem 0; }
+    .tc + .tc { border-top:1px solid var(--border); }
+    .tc-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .tc-name { font-size:0.7rem; letter-spacing:0.06em; color:var(--text); text-transform:uppercase; flex:1; }
+    .tc-depth { font-size:0.58rem; letter-spacing:0.1em; color:var(--dim); text-transform:uppercase; }
+
+    /* ── CURSOR RING ────────────────────────────────────────── */
+    #cursor-ring {
+      position:fixed; border-radius:50%;
+      border:2px solid rgba(20,20,40,0.55);
+      pointer-events:none; z-index:300;
+      display:none; transform:translate(-50%,-50%);
+      transition:width 0.12s, height 0.12s, border-color 0.2s;
+    }
+
+    /* ── GENDER TOGGLE ─────────────────────────────────────── */
+    #gender-tog {
+      position:absolute; z-index:22;
+      top:1rem; left:50%; transform:translateX(-50%);
+      display:flex; background:rgba(255,255,255,0.96);
+      border-radius:24px; border:1.5px solid var(--border);
+      box-shadow:0 2px 12px rgba(0,0,0,0.10); overflow:hidden;
+    }
+    .gtog {
+      padding:0.48rem 1.2rem;
+      font-size:0.72rem; font-weight:600; letter-spacing:0.09em; text-transform:uppercase;
+      border:none; background:transparent; cursor:pointer;
+      color:var(--dim); transition:background 0.18s, color 0.18s; white-space:nowrap;
+    }
+    .gtog + .gtog { border-left:1.5px solid var(--border); }
+    .gtog.on { background:var(--text); color:#fff; }
+
+    /* ── ERROR LOG ──────────────────────────────────────────── */
+    #el {
+      position:fixed; bottom:0; left:0; right:0; max-height:80px;
+      overflow-y:auto; background:rgba(255,245,245,0.97); color:#c62828;
+      font-size:0.75rem; font-family:monospace; padding:0.3rem 0.6rem;
+      display:none; z-index:999; border-top:1px solid #ffbbbb;
+    }
+  
+
+    </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- Full-screen body map (behind everything) -->
+  <div id="map-panel">
+    <canvas id="three-canvas"></canvas>
+    <div id="gender-tog">
+      <button class="gtog on" data-g="male">&#9794; Male</button>
+      <button class="gtog" data-g="female">&#9792; Female</button>
+    </div>
+    <div id="map-hint">← Select a pain type on the right<br>then paint it on the body</div>
+  </div>
+
+  <!-- Floating cards panel -->
+  <div id="cards-wrapper">
+    <div id="cards-panel">
+      <header>
+        <h1>Pain Visualiser</h1>
+        <p>Find the animation that best matches your pain — then paint where you feel it on the body.</p>
+      </header>
+      <section class="section">
+        <div class="sh"><span class="st">Rhythmic</span><span class="sd">Cyclic — hold to change rate</span></div>
+        <div class="grid" id="ga"></div>
+      </section>
+      <section class="section">
+        <div class="sh"><span class="st">Continuous</span><span class="sd">Always present</span></div>
+        <div class="grid" id="gb"></div>
+      </section>
+      <section class="section">
+        <div class="sh"><span class="st">Intermittent</span><span class="sd">Sudden — tap to trigger</span></div>
+        <div class="grid" id="gc"></div>
+      </section>
+      <section class="section">
+        <div class="sh"><span class="st">Sensory</span><span class="sd">Abnormal sensations</span></div>
+        <div class="grid" id="gd"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Paint controls bar (appears on selection) -->
+  <div id="paint-bar">
+    <div id="type-ind">
+      <div id="type-dot"></div>
+      <div id="type-name">—</div>
+    </div>
+
+    <div class="bar-sep"></div>
+
+    <div id="depth-bar">
+      <button class="dep on" data-d="skin"><span class="dico"></span>Skin</button>
+      <button class="dep" data-d="sub"><span class="dico"></span>Sub-Q</button>
+      <button class="dep" data-d="muscular"><span class="dico"></span>Muscle</button>
+      <button class="dep" data-d="visceral"><span class="dico"></span>Visceral</button>
+      <button class="dep dep-eraser" data-d="eraser"><span class="dico"></span>Eraser</button>
+    </div>
+
+    <div class="bar-sep"></div>
+
+    <div class="ctrl-grp">
+      <span class="ctrl-lbl">Brush</span>
+      <input type="range" class="pslider" id="brush-sz" min="1" max="20" value="5">
+      <span class="ctrl-val" id="brush-val">5</span>
+    </div>
+
+    <div class="ctrl-grp">
+      <span class="ctrl-lbl">Intensity</span>
+      <input type="range" class="pslider" id="intensity-sl" min="1" max="10" value="5">
+      <span class="ctrl-val" id="int-val">5</span>
+    </div>
+
+    <button id="clear-btn">Clear</button>
+  </div>
+</div>
+
+<div id="hover-tip"></div>
+<div id="cursor-ring"></div>
+<div id="el"></div>
+
+<!-- ================================================================
+     ANIMATIONS + CARDS
+================================================================ -->
+<script>
+const TAU = Math.PI * 2;
+const R   = (a,b) => a + Math.random()*(b-a);
+
+const el = document.getElementById('el');
+function logErr(n,e){
+  el.style.display='block';
+  el.textContent+=`[${n}] ${e&&e.message?e.message:String(e)}\n`;
+}
+
+class FX {
+  constructor(cv){
+    this.cv=cv; this.ctx=cv.getContext('2d');
+    this.W=cv.width; this.H=cv.height;
+    this.t=0; this.ptr=null; this.down=false; this.depth=0;
+  }
+  onDown(x,y){ this.down=true;  this.ptr={x,y}; }
+  onMove(x,y){                  this.ptr={x,y}; }
+  onUp()     { this.down=false; }
+  onLeave()  { this.down=false; this.ptr=null; }
+  bg(col='#070710'){ this.ctx.fillStyle=col; this.ctx.fillRect(0,0,this.W,this.H); }
+  fade(a=0.18){ this.ctx.globalAlpha=a; this.bg(); this.ctx.globalAlpha=1; }
+  tick(){ this.t++; }
+}
+
+class RhyFX extends FX {
+  constructor(cv,bpm=70){ super(cv); this.defBpm=bpm; this.bpm=bpm; this.lastBeat=-9999; }
+  get beatF(){ return Math.max((60/this.bpm)*60,4); }
+  onBeat(){}
+  _rTick(){
+    this.bpm=this.down?Math.min(this.bpm+0.55,155):this.bpm+(this.defBpm-this.bpm)*0.012;
+    if(this.t-this.lastBeat>=this.beatF){ this.lastBeat=this.t; this.onBeat(); }
+  }
+  tick(){ super.tick(); this._rTick(); }
+}
+
+class Throbbing extends RhyFX {
+  constructor(cv){ super(cv,70); this.rings=[]; this.dblD=0; this.dblA=0; }
+  onBeat(){
+    const amp=1+(this.bpm-this.defBpm)/80;
+    if(this.rings.length<12) this.rings.push({r:8,life:1,amp});
+    this.dblD=9; this.dblA=amp*0.6;
+  }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.13);
+    if(this.dblD>0&&--this.dblD===0&&this.rings.length<12) this.rings.push({r:8,life:0.72,amp:this.dblA});
+    const cx=W/2,cy=H/2,phase=Math.max(0,1-(this.t-this.lastBeat)/26);
+    ctx.save();
+    ctx.globalAlpha=0.18+phase*0.22; ctx.fillStyle='#cc1133';
+    ctx.beginPath(); ctx.arc(cx,cy,26+phase*16,0,TAU); ctx.fill();
+    this.rings=this.rings.filter(r=>r.life>0.02);
+    for(const r of this.rings){
+      r.r+=(3.2+(this.bpm-60)*0.025)*r.amp; r.life-=0.014;
+      ctx.globalAlpha=r.life*0.55;
+      ctx.strokeStyle=`hsl(348,88%,${46+r.life*20}%)`; ctx.lineWidth=2.2*r.life*r.amp;
+      ctx.beginPath(); ctx.arc(cx,cy,Math.max(r.r,0.1),0,TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+class Cramping extends RhyFX {
+  constructor(cv){ super(cv,12); this.phase='relaxed'; this.phaseT=0; this.tension=0; }
+  get phaseDur(){ return {relaxed:65,contracting:9,locked:140,releasing:85}[this.phase]; }
+  _nextPhase(){ const nx={relaxed:'contracting',contracting:'locked',locked:'releasing',releasing:'relaxed'}; this.phase=nx[this.phase]; this.phaseT=0; }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.13); this.phaseT++;
+    if(this.down){ this.phase='locked'; this.phaseT=0; this.tension=0.94+Math.sin(this.t*0.45)*0.06; }
+    else if(this.phaseT>this.phaseDur) this._nextPhase();
+    if(this.phase==='relaxed') this.tension=Math.max(this.tension-0.015,0);
+    else if(this.phase==='contracting') this.tension=Math.min(this.phaseT/9,1);
+    else if(this.phase==='locked') this.tension=0.93+Math.sin(this.t*0.42)*0.07;
+    else this.tension=Math.max(1-this.phaseT/85,0);
+    const ten=this.tension,cx=W/2,cy=H/2,spokes=9,rot=this.t*0.004;
+    const inner=10+ten*30,outer=Math.max(80-ten*42,inner+2);
+    ctx.save(); ctx.lineCap='round';
+    for(let i=0;i<spokes;i++){
+      const base=(i/spokes)*TAU+rot,twist=ten*Math.PI*0.58;
+      const x1=cx+Math.cos(base)*inner,y1=cy+Math.sin(base)*inner;
+      const x2=cx+Math.cos(base+twist)*outer,y2=cy+Math.sin(base+twist)*outer;
+      const mx=cx+Math.cos(base+twist*0.5+0.13)*(inner+outer)*0.5,my=cy+Math.sin(base+twist*0.5+0.13)*(inner+outer)*0.5;
+      ctx.globalAlpha=0.35+ten*0.5; ctx.strokeStyle=`hsl(${5-ten*6},${55+ten*25}%,${28+ten*14}%)`; ctx.lineWidth=2+ten*2;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.quadraticCurveTo(mx,my,x2,y2); ctx.stroke();
+    }
+    ctx.globalAlpha=0.28+ten*0.45; ctx.fillStyle=`hsl(5,72%,${26+ten*12}%)`;
+    ctx.beginPath(); ctx.arc(cx,cy,inner,0,TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+class DullConstant extends RhyFX {
+  constructor(cv){
+    super(cv,5); this.cells=[];
+    const nx=5,ny=5,W=cv.width,H=cv.height;
+    for(let i=0;i<nx;i++) for(let j=0;j<ny;j++) this.cells.push({x:(i+0.5)/nx*W,y:(j+0.5)/ny*H,phase:R(0,TAU),period:R(280,550),h:R(14,32)});
+  }
+  onDown(){} onMove(){}
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.bg('#060408'); ctx.save(); const r=W/5*0.72;
+    for(const c of this.cells){ const pulse=(Math.sin(this.t*(TAU/c.period)+c.phase)+1)*0.5; ctx.globalAlpha=0.12+pulse*0.15; ctx.fillStyle=`hsl(${c.h},46%,27%)`; ctx.beginPath(); ctx.arc(c.x,c.y,r,0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+class Angor extends RhyFX {
+  constructor(cv){ super(cv,28); this.rings=[]; this.doom=0; const W=cv.width,H=cv.height,maxR=Math.sqrt(W*W+H*H)*0.72; for(let i=0;i<4;i++) this.rings.push({r:maxR-i*W*0.16,life:0.5+i*0.12}); }
+  onBeat(){ const maxR=Math.sqrt(this.W*this.W+this.H*this.H)*0.72; if(this.rings.length<14) this.rings.push({r:maxR,life:1}); this.doom=Math.min(this.doom+0.2,1); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this,d=this.doom;
+    ctx.fillStyle=`hsl(0,${8+d*20}%,${2+d*3}%)`; ctx.fillRect(0,0,W,H); this.doom*=0.9975;
+    const cx=W/2,cy=H/2,sq=Math.max(0,1-(this.t-this.lastBeat)/28);
+    ctx.save(); ctx.globalAlpha=0.10+d*0.24+sq*0.22; ctx.fillStyle=`hsl(${12-d*8},${55+d*35}%,${14+sq*14}%)`; ctx.beginPath(); ctx.arc(cx,cy,10+sq*18,0,TAU); ctx.fill();
+    this.rings=this.rings.filter(r=>r.r>0&&r.life>0.01);
+    for(const r of this.rings){ r.r-=2.6+(this.bpm-28)*0.07; r.life-=0.007; const frac=Math.max(r.r/(Math.sqrt(W*W+H*H)*0.72),0); ctx.globalAlpha=r.life*(0.16+frac*0.42+d*0.14); ctx.strokeStyle=`hsl(${frac*10},${48+d*32}%,${13+frac*18}%)`; ctx.lineWidth=3.5*r.life*(1.1-frac*0.22); ctx.beginPath(); ctx.arc(cx,cy,Math.max(r.r,0.1),0,TAU); ctx.stroke(); }
+    if(this.down){ this.doom=Math.min(this.doom+0.014,1); ctx.globalAlpha=0.10+d*0.14; ctx.fillStyle='#150002'; ctx.fillRect(0,0,W,H); }
+    ctx.restore();
+  }
+}
+
+class Burning extends FX {
+  constructor(cv){ super(cv); this.pts=[]; this.emb=[]; }
+  _emit(x,y,n){ for(let i=0;i<n&&this.pts.length<90;i++) this.pts.push({x:x+R(-11,11),y,vx:R(-1,1),vy:R(-3.5,-1.5),s:R(5,12),h:R(0,26),life:1,ml:R(0.55,1)}); if(Math.random()<0.22&&this.emb.length<20) this.emb.push({x,y,vx:R(-2.2,2.2),vy:R(-4.5,-2),life:1}); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.15);
+    const src=this.ptr??{x:W/2+Math.sin(this.t*0.04)*20,y:H*0.72};
+    this._emit(src.x,src.y,this.ptr?6:3); ctx.save();
+    this.pts=this.pts.filter(p=>p.life>0.04);
+    for(const p of this.pts){ p.x+=p.vx+Math.sin(this.t*0.07+p.h)*0.35; p.y+=p.vy; p.vy+=0.06; p.vx*=0.975; p.life-=1/(p.ml*46); p.s*=0.99; ctx.globalAlpha=Math.min(p.life*1.8,1)*0.7; ctx.fillStyle=`hsl(${p.h+28},100%,55%)`; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(p.s,0.1),0,TAU); ctx.fill(); ctx.globalAlpha=Math.min(p.life*2,1)*0.35; ctx.fillStyle=`hsl(${p.h+52},100%,88%)`; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(p.s*0.35,0.1),0,TAU); ctx.fill(); }
+    this.emb=this.emb.filter(e=>e.life>0.04);
+    for(const e of this.emb){ e.x+=e.vx; e.y+=e.vy; e.vy+=0.1; e.life-=0.018; ctx.globalAlpha=e.life*0.8; ctx.fillStyle='#ff9922'; ctx.beginPath(); ctx.arc(e.x,e.y,1.5,0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+class Cold extends FX {
+  constructor(cv){ super(cv); this.shards=[]; this.patches=[]; this.idt=0; }
+  _burst(ox,oy){ const count=18; for(let i=0;i<count&&this.shards.length<120;i++){ const angle=(i/count)*TAU+R(-0.12,0.12),spd=R(2.2,5.5); this.shards.push({x:ox,y:oy,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,angle,life:1,len:R(7,20),w:R(0.6,1.3)}); } if(this.patches.length<12) this.patches.push({x:ox,y:oy,r:3,maxR:R(40,70),life:1,fadeDelay:60}); }
+  onDown(x,y){ super.onDown(x,y); this._burst(x,y); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.bg('#040910');
+    this.idt++; if(this.idt>100){ this.idt=0; this._burst(W/2+R(-20,20),H/2+R(-20,20)); }
+    ctx.save(); ctx.strokeStyle='rgba(140,205,240,0.35)'; ctx.lineWidth=0.7;
+    this.patches=this.patches.filter(p=>p.life>0.02);
+    for(const p of this.patches){ p.r=Math.min(p.r+0.55,p.maxR); if(p.fadeDelay>0) p.fadeDelay--; else p.life-=0.0018; ctx.globalAlpha=p.life*0.4; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,TAU); ctx.stroke(); ctx.globalAlpha=p.life*0.08; ctx.fillStyle='#88ccee'; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,TAU); ctx.fill(); }
+    ctx.lineCap='round'; this.shards=this.shards.filter(s=>s.life>0.03);
+    for(const s of this.shards){ s.x+=s.vx; s.y+=s.vy; s.vx*=0.92; s.vy*=0.92; s.life-=0.028; const ex=s.x+Math.cos(s.angle)*s.len*s.life,ey=s.y+Math.sin(s.angle)*s.len*s.life; ctx.globalAlpha=s.life*0.85; ctx.strokeStyle=`hsl(${195+s.life*15},${60+s.life*30}%,${60+s.life*28}%)`; ctx.lineWidth=s.w; ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(ex,ey); ctx.stroke(); }
+    ctx.restore();
+    if(this.ptr){ ctx.save(); ctx.globalAlpha=0.12; ctx.fillStyle='#224466'; ctx.beginPath(); ctx.arc(this.ptr.x,this.ptr.y,35,0,TAU); ctx.fill(); ctx.restore(); }
+  }
+}
+
+class Aching extends FX {
+  constructor(cv){ super(cv); const W=cv.width,H=cv.height; this.blobs=Array.from({length:7},()=>({x:R(W*0.12,W*0.88),y:R(H*0.12,H*0.88),vx:R(-0.07,0.07),vy:R(-0.07,0.07),r:R(38,62),phase:R(0,TAU)})); }
+  tick(){
+    super.tick(); const {ctx,W,H,t}=this; ctx.fillStyle='#090205'; ctx.fillRect(0,0,W,H); ctx.save(); ctx.globalAlpha=0.19; ctx.fillStyle='#350710'; ctx.fillRect(0,0,W,H);
+    for(const b of this.blobs){ b.x+=b.vx; b.y+=b.vy; if(b.x<18||b.x>W-18) b.vx*=-1; if(b.y<18||b.y>H-18) b.vy*=-1; const pulse=(Math.sin(t*0.004+b.phase)+1)*0.5; ctx.globalAlpha=0.07+pulse*0.06; ctx.fillStyle='#5c1018'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r*(1+pulse*0.1),0,TAU); ctx.fill(); }
+    if(this.ptr){ ctx.globalAlpha=0.16; ctx.fillStyle='#7a1422'; ctx.beginPath(); ctx.arc(this.ptr.x,this.ptr.y,46,0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+class Heavy extends FX {
+  tick(){
+    super.tick(); const {ctx,W,H,t}=this; this.bg('#060810'); const n=12; ctx.save(); ctx.lineCap='round';
+    for(let i=0;i<n;i++){ const baseY=(i+0.5)/n*H,w=i/n,maxSag=H*0.038*w+H*0.004; ctx.globalAlpha=0.20+w*0.16; ctx.strokeStyle=`hsl(210,${18+i*1.2}%,${11+i*1.6}%)`; ctx.lineWidth=0.9+w*0.9; ctx.beginPath(); for(let x=0;x<=W;x+=4){ const arch=Math.sin((x/W)*Math.PI)*maxSag,wave=Math.sin(x*0.022+t*0.004+i*0.35)*1.6*w; let y=baseY+arch+wave; if(this.ptr){ const dx=x-this.ptr.x; y+=Math.exp(-dx*dx/(2*52*52))*9*(this.ptr.y/H+0.4)*w; } x===0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); }
+    ctx.restore();
+  }
+}
+
+class Stabbing extends FX {
+  constructor(cv){ super(cv); this.bursts=[]; this.idt=0; }
+  _burst(x,y,f=1){ if(this.bursts.length>=5) return; const n=8+Math.floor(R(0,5)),b={x,y,life:1,f,spikes:[]}; for(let i=0;i<n;i++) b.spikes.push({angle:(i/n)*TAU+R(-0.28,0.28),len:R(32,68)*f,w:R(0.7,1.7)}); this.bursts.push(b); }
+  onDown(x,y){ super.onDown(x,y); this._burst(x,y,1.2); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.14); this.idt++;
+    if(this.idt>95&&!this.ptr){ this.idt=0; this._burst(R(W*0.15,W*0.85),R(H*0.15,H*0.85),0.6); }
+    ctx.save(); ctx.lineCap='round'; this.bursts=this.bursts.filter(b=>b.life>0.02);
+    for(const b of this.bursts){ b.life-=0.032; const ex=Math.min((1-b.life)*5.5,1); for(const s of b.spikes){ const len=s.len*ex*b.life; ctx.globalAlpha=b.life*0.85; ctx.strokeStyle=`hsl(0,88%,${50+b.life*20}%)`; ctx.lineWidth=s.w*b.life; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x+Math.cos(s.angle)*len,b.y+Math.sin(s.angle)*len); ctx.stroke(); } ctx.globalAlpha=b.life*0.45*ex; ctx.fillStyle='#ffbbbb'; ctx.beginPath(); ctx.arc(b.x,b.y,Math.max(15*b.life*ex,0.1),0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+class Electric extends FX {
+  constructor(cv){ super(cv); this.shocks=[]; this.flash=0; this.idt=0; }
+  _bolt(ox,oy,angle,d=0){ if(d>1) return []; const segs=[],steps=6-d,total=R(50,90)*(1-d*0.2); let cx=ox,cy=oy; for(let i=0;i<steps;i++){ const j=R(-20,20),nx=cx+Math.cos(angle)*(total/steps)+Math.cos(angle+Math.PI/2)*j,ny=cy+Math.sin(angle)*(total/steps)+Math.sin(angle+Math.PI/2)*j; segs.push({x1:cx,y1:cy,x2:nx,y2:ny,d}); cx=nx; cy=ny; } if(d<1&&Math.random()<0.5) segs.push(...this._bolt(cx,cy,angle+R(-0.75,0.75),d+1)); return segs; }
+  _shock(x,y){ if(this.shocks.length>=3) return; const segs=[]; for(let i=0;i<3;i++) segs.push(...this._bolt(x,y,R(0,TAU))); this.shocks.push({segs,life:1}); this.flash=1; }
+  onDown(x,y){ super.onDown(x,y); this._shock(x,y); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.18);
+    this.idt++; if(this.idt>150&&!this.ptr){ this.idt=0; this._shock(R(W*0.2,W*0.8),R(H*0.2,H*0.8)); }
+    if(this.flash>0.02){ ctx.globalAlpha=this.flash*0.4; ctx.fillStyle='#fffff5'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; this.flash*=0.7; }
+    ctx.save(); ctx.lineCap='round'; this.shocks=this.shocks.filter(s=>s.life>0.02);
+    for(const sh of this.shocks){ sh.life-=0.05; for(const seg of sh.segs){ const w=(2.2-seg.d*0.7)*sh.life; ctx.globalAlpha=sh.life*(0.3-seg.d*0.07); ctx.strokeStyle='#99bbff'; ctx.lineWidth=Math.max(w*5,0.1); ctx.beginPath(); ctx.moveTo(seg.x1,seg.y1); ctx.lineTo(seg.x2,seg.y2); ctx.stroke(); ctx.globalAlpha=sh.life*0.9; ctx.strokeStyle='#ddeeff'; ctx.lineWidth=Math.max(w,0.1); ctx.beginPath(); ctx.moveTo(seg.x1,seg.y1); ctx.lineTo(seg.x2,seg.y2); ctx.stroke(); } }
+    ctx.restore();
+  }
+}
+
+class Sharp extends FX {
+  constructor(cv){ super(cv); this.impacts=[]; this.idt=0; }
+  _pierce(x,y){ if(this.impacts.length>=6) return; this.impacts.push({x,y,life:1,born:this.t}); }
+  onDown(x,y){ super.onDown(x,y); this._pierce(x,y); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.14);
+    this.idt++; if(this.idt>110&&!this.ptr){ this.idt=0; this._pierce(R(W*0.2,W*0.8),R(H*0.2,H*0.8)); }
+    ctx.save(); ctx.lineCap='round'; this.impacts=this.impacts.filter(p=>p.life>0.02);
+    for(const p of this.impacts){ p.life-=0.018; const age=this.t-p.born,ringR=age*6.5,maxDist=Math.sqrt(Math.max(p.x,W-p.x)**2+Math.max(p.y,H-p.y)**2),reached=ringR>maxDist; if(age<8){ const f=1-age/8; ctx.globalAlpha=f*0.8; ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(p.x,p.y,8*f,0,TAU); ctx.fill(); } if(!reached){ ctx.globalAlpha=p.life*Math.max(0,1-ringR/maxDist)*0.8; ctx.strokeStyle='rgba(220,235,255,0.9)'; ctx.lineWidth=1.8; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(ringR,0.1),0,TAU); ctx.stroke(); } ctx.globalAlpha=p.life*0.35; ctx.fillStyle='#99bbee'; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(4*p.life,0.1),0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+class Shooting extends FX {
+  constructor(cv){ super(cv); this.paths=[]; this.idt=0; }
+  _make(ox,oy){ const segs=[]; let x=ox,y=oy; const angle=R(0,TAU),steps=15,total=R(95,160); for(let i=0;i<steps;i++){ const drift=R(-0.14,0.14),nx=x+Math.cos(angle+drift)*(total/steps),ny=y+Math.sin(angle+drift)*(total/steps); segs.push({x1:x,y1:y,x2:nx,y2:ny}); x=nx; y=ny; } const bi=Math.floor(steps*R(0.3,0.65)),bx=segs[bi].x2,by=segs[bi].y2,ba=angle+R(0.4,0.8)*(Math.random()<0.5?1:-1); let bpx=bx,bpy=by; for(let i=0;i<5;i++){ const nx=bpx+Math.cos(ba)*(total/steps*0.52),ny=bpy+Math.sin(ba)*(total/steps*0.52); segs.push({x1:bpx,y1:bpy,x2:nx,y2:ny,branch:true}); bpx=nx; bpy=ny; } return {segs,sig:0,life:1}; }
+  onDown(x,y){ super.onDown(x,y); if(this.paths.length<3) this.paths.push(this._make(x,y)); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.14);
+    this.idt++; if(this.idt>130&&!this.ptr&&this.paths.length<2){ this.idt=0; this.paths.push(this._make(R(W*0.15,W*0.85),R(H*0.15,H*0.85))); }
+    ctx.save(); ctx.lineCap='round'; this.paths=this.paths.filter(p=>p.life>0.02);
+    for(const path of this.paths){ path.sig=Math.min(path.sig+0.8,path.segs.length); if(path.sig>=path.segs.length) path.life-=0.016; const vis=Math.floor(path.sig); for(let i=0;i<vis&&i<path.segs.length;i++){ const seg=path.segs[i],age=(path.sig-i)/path.segs.length,a=Math.max(0,0.6-age*0.82)*path.life; if(a<0.02) continue; ctx.globalAlpha=a*(seg.branch?0.5:1); ctx.strokeStyle=seg.branch?'#6688bb':'#88aadd'; ctx.lineWidth=seg.branch?2.5:4.5; ctx.beginPath(); ctx.moveTo(seg.x1,seg.y1); ctx.lineTo(seg.x2,seg.y2); ctx.stroke(); ctx.globalAlpha=a*0.75; ctx.strokeStyle='#cce4ff'; ctx.lineWidth=seg.branch?0.7:1.2; ctx.beginPath(); ctx.moveTo(seg.x1,seg.y1); ctx.lineTo(seg.x2,seg.y2); ctx.stroke(); } if(path.sig<path.segs.length){ const seg=path.segs[Math.floor(path.sig)],frac=path.sig%1,hx=seg.x1+(seg.x2-seg.x1)*frac,hy=seg.y1+(seg.y2-seg.y1)*frac; ctx.globalAlpha=path.life*0.9; ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(hx,hy,6,0,TAU); ctx.fill(); } }
+    ctx.restore();
+  }
+}
+
+class CoupDePoignard extends FX {
+  constructor(cv){ super(cv); this.tears=[]; this.idt=0; }
+  _tear(px,py){ if(this.tears.length>=3) return; const angle=R(0,TAU),bigL=Math.sqrt(this.W*this.W+this.H*this.H); this.tears.push({x1:px-Math.cos(angle)*bigL,y1:py-Math.sin(angle)*bigL,x2:px+Math.cos(angle)*bigL,y2:py+Math.sin(angle)*bigL,life:1,flash:1}); }
+  onDown(x,y){ super.onDown(x,y); this._tear(x,y); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.15);
+    this.idt++; if(this.idt>160&&!this.ptr){ this.idt=0; this._tear(W/2+R(-30,30),H/2+R(-20,20)); }
+    ctx.save(); ctx.lineCap='butt'; this.tears=this.tears.filter(t=>t.life>0.02);
+    for(const te of this.tears){ if(te.flash>0.02){ ctx.globalAlpha=te.flash*0.55; ctx.fillStyle='#fffef5'; ctx.fillRect(0,0,W,H); te.flash*=0.62; } te.life-=0.012; ctx.globalAlpha=te.life*0.22; ctx.strokeStyle='#ffddcc'; ctx.lineWidth=28*te.life; ctx.beginPath(); ctx.moveTo(te.x1,te.y1); ctx.lineTo(te.x2,te.y2); ctx.stroke(); ctx.globalAlpha=te.life*0.5; ctx.strokeStyle='#ffaa88'; ctx.lineWidth=8*te.life; ctx.beginPath(); ctx.moveTo(te.x1,te.y1); ctx.lineTo(te.x2,te.y2); ctx.stroke(); ctx.globalAlpha=te.life*0.95; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(te.x1,te.y1); ctx.lineTo(te.x2,te.y2); ctx.stroke(); }
+    ctx.restore();
+  }
+}
+
+class Tingling extends FX {
+  constructor(cv){ super(cv); this.sparks=[]; }
+  _spawn(x,y,n){ for(let i=0;i<n&&this.sparks.length<70;i++) this.sparks.push({x:x+R(-24,24),y:y+R(-24,24),vx:R(-1.1,1.1),vy:R(-1.1,1.1),life:R(0.35,0.8),s:R(1,3),h:R(220,305)}); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.09);
+    if(Math.random()<0.38&&this.sparks.length<70) this._spawn(R(0,W),R(0,H),1);
+    if(this.ptr) this._spawn(this.ptr.x,this.ptr.y,5);
+    ctx.save(); this.sparks=this.sparks.filter(s=>s.life>0.03);
+    for(const s of this.sparks){ s.x+=s.vx+R(-0.18,0.18); s.y+=s.vy+R(-0.18,0.18); s.vx*=0.95; s.vy*=0.95; s.life-=0.026; ctx.globalAlpha=s.life*0.82; ctx.fillStyle=`hsl(${s.h},78%,72%)`; ctx.beginPath(); ctx.arc(s.x,s.y,Math.max(s.s*s.life,0.1),0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+class Numbness extends FX {
+  constructor(cv){ super(cv); this.patches=[]; this.noise=Array.from({length:65},()=>({x:R(0,cv.width),y:R(0,cv.height),v:Math.random()})); }
+  onDown(x,y){ super.onDown(x,y); if(this.patches.length<7) this.patches.push({x,y,r:4,life:1}); }
+  onMove(x,y){ super.onMove(x,y); if(this.down&&this.patches.length<7) this.patches.push({x,y,r:4,life:1}); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; ctx.fillStyle='#080b14'; ctx.fillRect(0,0,W,H); ctx.save();
+    for(const n of this.noise){ n.v+=R(-0.06,0.06); n.v=Math.max(0.05,Math.min(1,n.v)); ctx.globalAlpha=n.v*0.14; ctx.fillStyle=`hsl(220,10%,${38+n.v*16}%)`; ctx.fillRect(n.x,n.y,2,2); }
+    this.patches=this.patches.filter(p=>p.r<90||p.life>0.06);
+    for(const p of this.patches){ p.r=Math.min(p.r+0.6,90); p.life=Math.max(p.life-0.003,0.06); ctx.globalAlpha=p.life*0.5; ctx.fillStyle=`hsl(220,12%,${24+p.life*8}%)`; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,TAU); ctx.fill(); }
+    if(!this.patches.length){ const pulse=(Math.sin(this.t*0.02)+1)*0.5; ctx.globalAlpha=0.1+pulse*0.07; ctx.fillStyle='#464c5a'; ctx.beginPath(); ctx.arc(W/2,H/2,52+pulse*20,0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+class Itching extends FX {
+  constructor(cv){ super(cv); this.mites=[]; for(let i=0;i<30;i++) this._add(R(0,cv.width),R(0,cv.height)); }
+  _add(x,y){ if(this.mites.length>=48) return; this.mites.push({x,y,vx:R(-1,1),vy:R(-1,1),life:1,decay:R(0.005,0.012),s:R(1.2,2.8),h:R(0,20)}); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.08);
+    if(this.mites.length<30) this._add(R(0,W),R(0,H));
+    if(this.ptr&&this.mites.length<48) for(let i=0;i<3;i++) this._add(this.ptr.x+R(-16,16),this.ptr.y+R(-16,16));
+    ctx.save(); this.mites=this.mites.filter(m=>m.life>0.03);
+    for(const m of this.mites){ m.vx+=R(-0.32,0.32); m.vy+=R(-0.32,0.32); const spd=Math.sqrt(m.vx*m.vx+m.vy*m.vy); if(spd>2){ m.vx*=0.5; m.vy*=0.5; } m.x+=m.vx; m.y+=m.vy; m.life-=m.decay; if(m.x<0) m.x=W; if(m.x>W) m.x=0; if(m.y<0) m.y=H; if(m.y>H) m.y=0; ctx.globalAlpha=m.life*0.72; ctx.fillStyle=`hsl(${m.h+this.t*0.07},62%,58%)`; ctx.beginPath(); ctx.arc(m.x,m.y,m.s,0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+class Allodynia extends FX {
+  constructor(cv){ super(cv); this.floats=[]; this.panics=[]; this.cd=0; for(let i=0;i<16;i++) this._addF(true); }
+  _addF(any=false){ if(this.floats.length>=16) return; this.floats.push({x:R(0,this.W),y:any?R(0,this.H):this.H+4,vx:R(-0.22,0.22),vy:R(-0.45,-0.12),life:1,decay:R(0.004,0.008),s:R(1.8,4)}); }
+  _trigger(x,y){ if(this.cd>0||this.panics.length>=4) return; this.panics.push({x,y,life:1,born:this.t}); this.cd=36; }
+  onMove(x,y){ super.onMove(x,y); this._trigger(x,y); }
+  onDown(x,y){ super.onDown(x,y); this._trigger(x,y); }
+  tick(){
+    super.tick(); const {ctx,W,H,t}=this; this.fade(0.12); if(this.cd>0) this.cd--;
+    while(this.floats.length<16) this._addF();
+    ctx.save(); this.floats=this.floats.filter(f=>f.life>0.03);
+    for(const f of this.floats){ f.x+=f.vx+Math.sin(t*0.024+f.s)*0.22; f.y+=f.vy; f.life-=f.decay; ctx.globalAlpha=f.life*0.35; ctx.fillStyle='hsl(340,52%,65%)'; ctx.beginPath(); ctx.arc(f.x,f.y,f.s,0,TAU); ctx.fill(); }
+    this.panics=this.panics.filter(p=>p.life>0.02); ctx.lineCap='round';
+    for(const p of this.panics){ p.life-=0.022; const age=t-p.born,ringR=age*3.6,ex=Math.min(age/10,1); if(ringR<W+20){ ctx.globalAlpha=p.life*0.55; ctx.strokeStyle=`hsl(${10-p.life*5},90%,${50+p.life*16}%)`; ctx.lineWidth=2*p.life; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(ringR,0.1),0,TAU); ctx.stroke(); } for(let i=0;i<8;i++){ const a=(i/8)*TAU,l=28*ex*p.life; ctx.globalAlpha=p.life*0.6*ex; ctx.strokeStyle='hsl(5,88%,60%)'; ctx.lineWidth=1.4*p.life; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+Math.cos(a)*l,p.y+Math.sin(a)*l); ctx.stroke(); } }
+    ctx.restore();
+  }
+}
+
+class Hypoesthesia extends FX {
+  constructor(cv){ super(cv); this.sparks=[]; }
+  _spawn(x,y,n){ for(let i=0;i<n&&this.sparks.length<22;i++) this.sparks.push({x:x+R(-32,32),y:y+R(-32,32),vx:R(-0.4,0.4),vy:R(-0.4,0.4),life:R(0.2,0.5),s:R(0.8,2)}); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; this.fade(0.06);
+    if(Math.random()<0.1&&this.sparks.length<22) this._spawn(R(0,W),R(0,H),1);
+    if(this.ptr&&Math.random()<0.5) this._spawn(this.ptr.x,this.ptr.y,2);
+    ctx.save(); this.sparks=this.sparks.filter(s=>s.life>0.02);
+    for(const s of this.sparks){ s.x+=s.vx; s.y+=s.vy; s.vx*=0.94; s.vy*=0.94; s.life-=0.02; ctx.globalAlpha=s.life*0.45; ctx.fillStyle=`hsl(220,8%,${52+s.life*18}%)`; ctx.beginPath(); ctx.arc(s.x,s.y,Math.max(s.s*s.life,0.1),0,TAU); ctx.fill(); }
+    ctx.globalAlpha=0.06; ctx.fillStyle='#1e2030'; ctx.fillRect(0,0,W,H); ctx.restore();
+  }
+}
+
+class Anesthesia extends FX {
+  constructor(cv){ super(cv); this.ghosts=[]; }
+  onDown(x,y){ super.onDown(x,y); if(this.ghosts.length<6) this.ghosts.push({x,y,life:1,decay:0.12}); }
+  tick(){
+    super.tick(); const {ctx,W,H}=this; ctx.fillStyle='#08090e'; ctx.fillRect(0,0,W,H);
+    if(Math.random()<0.06){ ctx.globalAlpha=0.06; ctx.fillStyle='#2a2d38'; ctx.fillRect(R(0,W),R(0,H),2,2); }
+    ctx.save(); ctx.globalAlpha=0.28; ctx.strokeStyle='#2e3350'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,H*0.5); ctx.lineTo(W,H*0.5); ctx.stroke(); ctx.restore(); ctx.save();
+    this.ghosts=this.ghosts.filter(g=>g.life>0.02);
+    for(const g of this.ghosts){ g.life-=g.decay; ctx.globalAlpha=g.life*0.5; ctx.fillStyle='#505565'; ctx.beginPath(); ctx.arc(g.x,H*0.5,Math.max(5*g.life,0.1),0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+/* ── REGISTRY ─────────────────────────────────────────────── */
+const REG = {
+  ga:[
+    {id:'throbbing', label:'Throbbing',       Cls:Throbbing,      accent:'#e53935', hint:'hold to speed up'},
+    {id:'cramping',  label:'Cramping',         Cls:Cramping,       accent:'#880e4f', hint:'hold — feel it lock'},
+    {id:'dull',      label:'Dull & Constant',  Cls:DullConstant,   accent:'#795548', hint:'never zero'},
+    {id:'angor',     label:'Angor / Angina',   Cls:Angor,          accent:'#1565c0', hint:'hold — feel the grip'},
+  ],
+  gb:[
+    {id:'burning',   label:'Burning',          Cls:Burning,        accent:'#e65100', hint:'drag to spread'},
+    {id:'cold',      label:'Cold / Freezing',  Cls:Cold,           accent:'#0097a7', hint:'tap to feel the bite'},
+    {id:'aching',    label:'Aching',           Cls:Aching,         accent:'#6a1b9a', hint:'always present'},
+    {id:'heavy',     label:'Heavy',            Cls:Heavy,          accent:'#37474f', hint:'move to add weight'},
+  ],
+  gc:[
+    {id:'stabbing',  label:'Stabbing',         Cls:Stabbing,       accent:'#f57f17', hint:'tap to stab'},
+    {id:'electric',  label:'Electric Shock',   Cls:Electric,       accent:'#558b2f', hint:'tap to shock'},
+    {id:'sharp',     label:'Sharp / Piercing', Cls:Sharp,          accent:'#00897b', hint:'tap — goes through'},
+    {id:'shooting',  label:'Shooting',         Cls:Shooting,       accent:'#283593', hint:'tap to fire'},
+    {id:'poignard',  label:'Coup de Poignard', Cls:CoupDePoignard, accent:'#ad1457', hint:'tap — tears through'},
+  ],
+  gd:[
+    {id:'tingling',  label:'Tingling',         Cls:Tingling,       accent:'#8e24aa', hint:'move for sparks'},
+    {id:'numbness',  label:'Numbness',         Cls:Numbness,       accent:'#546e7a', hint:'tap to spread'},
+    {id:'itching',   label:'Itching',          Cls:Itching,        accent:'#2e7d32', hint:'tap to concentrate'},
+    {id:'allodynia', label:'Allodynia',        Cls:Allodynia,      accent:'#c62828', hint:'any touch hurts'},
+    {id:'hypo',      label:'Hypoesthesia',     Cls:Hypoesthesia,   accent:'#9e9e9e', hint:'less than expected'},
+    {id:'anesthesia',label:'Anesthesia',       Cls:Anesthesia,     accent:'#263238', hint:'nothing responds'},
+  ],
+};
+
+/* ── BUILD CARDS ─────────────────────────────────────────── */
+const allFx = [];
+
+function clearSelection(){
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('faded','selected'));
+  document.querySelectorAll('.sel.on').forEach(b=>{ b.classList.remove('on'); b.textContent='Select'; });
+  document.body.classList.remove('has-selection');
+  document.dispatchEvent(new CustomEvent('paindeselect'));
+}
+
+for(const [gridId, types] of Object.entries(REG)){
+  const grid = document.getElementById(gridId);
+  for(const type of types){
+    const card = document.createElement('div');
+    card.className='card';
+    card.style.setProperty('--accent', type.accent);
+
+    const wrap = document.createElement('div'); wrap.className='cw';
+    const canvas = document.createElement('canvas'); canvas.width=canvas.height=200;
+    wrap.appendChild(canvas);
+
+    const lbl = document.createElement('div'); lbl.className='lbl'; lbl.textContent=type.label;
+
+    const sel = document.createElement('button'); sel.className='sel'; sel.textContent='Select';
+    sel.addEventListener('click', ()=>{
+      const wasOn = sel.classList.contains('on');
+      clearSelection();
+      if(!wasOn){
+        sel.classList.add('on'); sel.textContent='● Active';
+        card.classList.add('selected');
+        document.querySelectorAll('.card').forEach(c=>{ if(c!==card) c.classList.add('faded'); });
+        document.body.classList.add('has-selection');
+        document.dispatchEvent(new CustomEvent('painselect',{detail:{id:type.id,label:type.label,color:type.accent}}));
+      }
+    });
+
+    card.append(wrap, lbl, sel);
+    grid.appendChild(card);
+
+    let fx;
+    try{ fx = new type.Cls(canvas); }
+    catch(e){ logErr(`INIT ${type.id}`,e); card.classList.add('err'); continue; }
+    allFx.push({fx,card,id:type.id});
+
+    const toCV=(e,touch=false)=>{ const rect=canvas.getBoundingClientRect(),sx=canvas.width/rect.width,sy=canvas.height/rect.height,s=touch?e.touches[0]:e; return {x:(s.clientX-rect.left)*sx,y:(s.clientY-rect.top)*sy}; };
+    canvas.addEventListener('mouseenter',  ()=>card.classList.add('active'));
+    canvas.addEventListener('mouseleave',  ()=>{ card.classList.remove('active'); fx.onLeave(); });
+    canvas.addEventListener('mousedown',   e=>{ const p=toCV(e); fx.onDown(p.x,p.y); });
+    canvas.addEventListener('mousemove',   e=>{ const p=toCV(e); fx.onMove(p.x,p.y); });
+    canvas.addEventListener('mouseup',     ()=>fx.onUp());
+    canvas.addEventListener('touchstart',  e=>{ e.preventDefault(); card.classList.add('active'); const p=toCV(e,true); fx.onDown(p.x,p.y); },{passive:false});
+    canvas.addEventListener('touchmove',   e=>{ e.preventDefault(); const p=toCV(e,true); fx.onMove(p.x,p.y); },{passive:false});
+    canvas.addEventListener('touchend',    e=>{ e.preventDefault(); fx.onUp(); fx.onLeave(); },{passive:false});
+  }
+}
+
+(function loop(){
+  requestAnimationFrame(loop);
+  for(const {fx,card,id} of allFx){
+    try{ fx.tick(); }
+    catch(e){ logErr(`TICK ${id}`,e); card.classList.add('err'); }
+  }
+})();
+</script>
+
+<!-- ================================================================
+     THREE.JS BODY MAP
+================================================================ -->
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
+
+const TAU = Math.PI * 2;
+
+/* ── DOM ────────────────────────────────────────────────────── */
+const cvEl    = document.getElementById('three-canvas');
+const hint    = document.getElementById('map-hint');
+const typeDot = document.getElementById('type-dot');
+const typeName= document.getElementById('type-name');
+const tip     = document.getElementById('hover-tip');
+const ring    = document.getElementById('cursor-ring');
+
+/* ── Renderer ───────────────────────────────────────────────── */
+const renderer = new THREE.WebGLRenderer({ canvas:cvEl, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0xededea, 1);
+
+function resize(){
+  const w = cvEl.parentElement.clientWidth;
+  const h = cvEl.parentElement.clientHeight;
+  if(w<1||h<1) return;
+  renderer.setSize(w, h);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(cvEl.parentElement);
+
+/* ── Scene ──────────────────────────────────────────────────── */
+const scene = new THREE.Scene();
+scene.fog   = new THREE.FogExp2(0xededea, 0.009);
+
+const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 120);
+camera.position.set(0, 8, 28);
+
+const controls = new OrbitControls(camera, cvEl);
+controls.target.set(0, 8, 0);
+controls.enablePan    = true;
+controls.panSpeed     = 0.8;
+controls.screenSpacePanning = true;
+controls.mouseButtons = {
+  LEFT:   THREE.MOUSE.ROTATE,
+  MIDDLE: THREE.MOUSE.DOLLY,
+  RIGHT:  THREE.MOUSE.PAN,
+};
+controls.minDistance  = 6;
+controls.maxDistance  = 46;
+controls.enableDamping= true;
+controls.dampingFactor= 0.08;
+controls.enableZoom   = false;   /* we handle zoom manually for cursor-targeted dolly */
+controls.update();
+
+/* Cursor-targeted zoom: dolly camera toward/away from the point under cursor */
+cvEl.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect  = cvEl.getBoundingClientRect();
+  const ndc   = new THREE.Vector2(
+    ((e.clientX - rect.left) / rect.width)  * 2 - 1,
+    -((e.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(ndc, camera);
+
+  /* Find target point: hit on body or fall back to a plane at current target depth */
+  let targetPt;
+  const hits = ray.intersectObjects(bodyParts, false);
+  if(hits.length){
+    targetPt = hits[0].point;
+  } else {
+    const dist = camera.position.distanceTo(controls.target);
+    targetPt   = ray.ray.at(dist, new THREE.Vector3());
+  }
+
+  const toTarget = targetPt.clone().sub(camera.position);
+  const tLen     = toTarget.length();
+  const factor   = e.deltaY > 0 ? -0.12 : 0.12;   /* scroll-down = zoom-out */
+  const dolly    = tLen * factor * 1.4;
+  const dist     = camera.position.distanceTo(controls.target);
+  const newDist  = dist - dolly;
+  if(newDist < controls.minDistance || newDist > controls.maxDistance){ controls.update(); return; }
+  camera.position.addScaledVector(toTarget.normalize(), dolly);
+  controls.target.addScaledVector(toTarget.normalize(), dolly * 0.45);
+  controls.update();
+}, { passive: false });
+
+/* ── Lighting ───────────────────────────────────────────────── */
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+const key = new THREE.DirectionalLight(0xfff8ee, 1.3);
+key.position.set(4, 14, 10); scene.add(key);
+const fill = new THREE.DirectionalLight(0xeeeeff, 0.55);
+fill.position.set(-7, 5, -6); scene.add(fill);
+const bot = new THREE.DirectionalLight(0xffffff, 0.18);
+bot.position.set(0, -6, 8); scene.add(bot);
+
+/* ── Materials ──────────────────────────────────────────────── */
+const SKIN_STR    = '#d4a882';
+const TEX_SIZE    = 512;
+const MAX_UV      = 0.18;
+const darkOutline = 0x3a2010;
+
+/* ── Paintable body parts ───────────────────────────────────── */
+const bodyParts = [];
+
+/* ── Embedded model (base64 GLB) ────────────────────────────── */
+/* ── Dual model (male / female) ─────────────────────────────── */
+const SKIP_MESH = /inside|teethe|tongue/i;   /* non-paintable internal geometry */
+
+const modelData = {
+  male:   { file:'./male_body.glb', scene:null, parts:[] },
+  female: { file:'./low_poly_female_body__teeth__tongue_lp.glb', scene:null, parts:[] },
+};
+let activeGender = 'male';
+
+function setupModel(gltf, gender){
+  const model = gltf.scene;
+  const entry = modelData[gender];
+  entry.scene = model;
+  model.updateMatrixWorld(true);
+
+  /* Collect paintable meshes */
+  const meshes = [];
+  model.traverse(child => {
+    if(child.isMesh){
+      if(SKIP_MESH.test(child.name)){ child.visible = false; return; }
+      meshes.push(child);
+    }
+  });
+  if(meshes.length === 0){ console.error('[PV] No paintable meshes for', gender); return; }
+
+  /* Auto-fit */
+  const box = new THREE.Box3();
+  for(const m of meshes) box.union(new THREE.Box3().setFromObject(m));
+  const sizeY = box.max.y - box.min.y;
+  model.scale.setScalar(sizeY > 0 ? 16/sizeY : 1);
+  model.updateMatrixWorld(true);
+  const box2   = new THREE.Box3().setFromObject(model);
+  const center = box2.getCenter(new THREE.Vector3());
+  model.position.set(-center.x, -box2.min.y, -center.z);
+
+  /* Paintable canvas textures (3-layer: base / stroke / display) */
+  for(const child of meshes){
+    child.geometry.computeVertexNormals();
+    function makeCanvas(fill){
+      const c = document.createElement('canvas'); c.width = c.height = TEX_SIZE;
+      const x = c.getContext('2d');
+      if(fill){ x.fillStyle = SKIN_STR; x.fillRect(0,0,TEX_SIZE,TEX_SIZE); }
+      return { c, x };
+    }
+    const { c:cv,  x:ctx  } = makeCanvas(true);   /* committed base          */
+    const { c:cvS, x:ctxS } = makeCanvas(false);  /* current stroke (clear)  */
+    const { c:cvD, x:ctxD } = makeCanvas(true);   /* display composite       */
+    const tex = new THREE.CanvasTexture(cvD);
+    child.material = new THREE.MeshPhongMaterial({
+      map:tex, specular:0x221100, shininess:18, side:THREE.DoubleSide,
+    });
+    child.userData = { cv, ctx, cvS, ctxS, cvD, ctxD, tex,
+                       name: child.name || gender, _strokeActive: false };
+    entry.parts.push(child);
+  }
+
+  model.visible = (gender === activeGender);
+  scene.add(model);
+
+  if(gender === activeGender) bodyParts.push(...entry.parts);
+  console.log('[PV]', gender, 'ready —', meshes.length, 'meshes');
+}
+
+function switchGender(gender){
+  if(gender === activeGender) return;
+  if(modelData[activeGender].scene) modelData[activeGender].scene.visible = false;
+  if(modelData[gender].scene)       modelData[gender].scene.visible = true;
+  activeGender = gender;
+  bodyParts.length = 0;
+  bodyParts.push(...modelData[gender].parts);
+  paintLog.length = 0;
+  for(const mesh of bodyParts){
+    const {ctx, ctxS, ctxD, tex} = mesh.userData;
+    ctx.fillStyle = SKIN_STR;  ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+    ctxS.clearRect(0,0,TEX_SIZE,TEX_SIZE);
+    ctxD.fillStyle = SKIN_STR; ctxD.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+    mesh.userData._strokeActive = false;
+    tex.needsUpdate = true;
+  }
+}
+
+/* Load both models in parallel */
+const loader = new GLTFLoader();
+let loadedCount = 0;
+hint.innerHTML = 'Loading models…';
+for(const [gender, entry] of Object.entries(modelData)){
+  loader.load(entry.file, gltf => {
+    try{
+      setupModel(gltf, gender);
+      if(++loadedCount === 2)
+        hint.innerHTML = '← Select a pain type on the right<br>then paint it on the body';
+    } catch(e){ console.error('[PV] Setup error:', gender, e); }
+  }, undefined, err => { if(err) console.error('[PV] Load error:', gender, err); });
+}
+
+/* Gender toggle */
+document.querySelectorAll('.gtog').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.gtog').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    switchGender(btn.dataset.g);
+  });
+});
+
+/* ── Paint state ─────────────────────────────────────────────── */
+let activePain  = null;
+let activeDepth = 'skin';
+let isPainting  = false;
+let brushSize   = 5;
+let intensity   = 5;
+let strokeDepth = 'skin';   /* depth mode captured at stroke start */
+let strokeBr    = 20;       /* brush radius (tex px) for current stroke */
+
+/* Depth controls visual style only — brush size stays constant.
+   stop  = where radial gradient begins fading (0=edge harsh, 1=soft from centre)
+   alpha = max opacity multiplier for this layer                                  */
+const DEPTH_CFG = {
+  skin:     { stop:0.50, alpha:1.00 },   /* sharp-edged, fully opaque            */
+  sub:      { stop:0.70, alpha:0.88 },   /* softer edge                          */
+  muscular: { stop:0.52, alpha:0.82 },   /* hatched texture                      */
+  visceral: { stop:0.88, alpha:0.55 },   /* very diffuse, ghostly                */
+};
+
+/* Brush radius in texture pixels — depth does NOT change size */
+const BR_SCALE = TEX_SIZE / 128;   /* 512/128=4: maps slider range to tex pixels */
+
+const paintLog = [];
+
+function hexToRgb(hex){
+  const n = parseInt(hex.replace('#',''), 16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
+
+function hexToRgba(hex, a){
+  const [r,g,b] = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function paintCircle(ctx, cx, cy, br, r, g, b, depth){
+  /* Paint fill only — patterns are overlaid separately in buildHatchOverlay
+     so they are always visible regardless of how much you drag. */
+  const cfg = DEPTH_CFG[depth];
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, br, 0, TAU); ctx.clip();
+
+  if(depth === 'skin'){
+    const gr = ctx.createRadialGradient(cx,cy,0, cx,cy,br);
+    gr.addColorStop(0,        `rgba(${r},${g},${b},1)`);
+    gr.addColorStop(cfg.stop, `rgba(${r},${g},${b},0.65)`);
+    gr.addColorStop(1,        `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = gr; ctx.fillRect(cx-br, cy-br, br*2, br*2);
+
+  } else if(depth === 'sub'){
+    const gr = ctx.createRadialGradient(cx,cy,0, cx,cy,br);
+    gr.addColorStop(0,        `rgba(${r},${g},${b},1)`);
+    gr.addColorStop(cfg.stop, `rgba(${r},${g},${b},0.55)`);
+    gr.addColorStop(1,        `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = gr; ctx.fillRect(cx-br, cy-br, br*2, br*2);
+
+  } else if(depth === 'muscular'){
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(cx-br, cy-br, br*2, br*2);
+
+  } else if(depth === 'visceral'){
+    const gr = ctx.createRadialGradient(cx,cy,0, cx,cy,br);
+    gr.addColorStop(0,        `rgba(${r},${g},${b},1)`);
+    gr.addColorStop(cfg.stop, `rgba(${r},${g},${b},0.4)`);
+    gr.addColorStop(1,        `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = gr; ctx.fillRect(cx-br, cy-br, br*2, br*2);
+  }
+  ctx.restore();
+}
+
+/* One shared offscreen canvas for hatch/stipple overlay compositing */
+const hatchOff    = document.createElement('canvas');
+hatchOff.width    = hatchOff.height = TEX_SIZE;
+const hatchOffCtx = hatchOff.getContext('2d');
+
+/* Draw a tiled pattern onto hatchOff, then clip it to wherever shapeSrc has paint.
+   Result: hatchOff contains pattern lines/dots ONLY inside painted areas. */
+function buildHatchOverlay(shapeSrc, depth, br){
+  /* Pattern spacing scales with brush so it's always visible even in small strokes.
+     At minimum: ~5 lines or ~3 dots fit across any brush diameter. */
+  const S   = TEX_SIZE;
+  const gap = Math.max(3, br / 5);          /* line spacing: 5 gaps per brush width  */
+  const dotStep = Math.max(5, br / 4);      /* dot grid: 4 columns per brush width   */
+  const dotR    = Math.max(1.2, br / 14);   /* dot radius scales too                 */
+  hatchOffCtx.clearRect(0, 0, S, S);
+
+  if(depth === 'sub'){
+    hatchOffCtx.strokeStyle = 'rgba(0,0,0,0.55)';
+    hatchOffCtx.lineWidth   = Math.max(1, br / 28);
+    hatchOffCtx.save();
+    hatchOffCtx.translate(S * 0.5, S * 0.5);
+    hatchOffCtx.rotate(Math.PI / 4);
+    for(let h = -S * 1.5; h <= S * 1.5; h += gap){
+      hatchOffCtx.beginPath();
+      hatchOffCtx.moveTo(-S * 1.5, h);
+      hatchOffCtx.lineTo( S * 1.5, h);
+      hatchOffCtx.stroke();
+    }
+    hatchOffCtx.restore();
+
+  } else if(depth === 'muscular'){
+    hatchOffCtx.strokeStyle = 'rgba(0,0,0,0.60)';
+    hatchOffCtx.lineWidth   = Math.max(1, br / 32);
+    hatchOffCtx.save();
+    hatchOffCtx.translate(S * 0.5, S * 0.5);
+    hatchOffCtx.rotate(Math.PI / 4);
+    for(let h = -S * 1.5; h <= S * 1.5; h += gap){
+      hatchOffCtx.beginPath();
+      hatchOffCtx.moveTo(-S * 1.5, h);
+      hatchOffCtx.lineTo( S * 1.5, h);
+      hatchOffCtx.stroke();
+    }
+    hatchOffCtx.rotate(-Math.PI / 2);
+    for(let h = -S * 1.5; h <= S * 1.5; h += gap){
+      hatchOffCtx.beginPath();
+      hatchOffCtx.moveTo(-S * 1.5, h);
+      hatchOffCtx.lineTo( S * 1.5, h);
+      hatchOffCtx.stroke();
+    }
+    hatchOffCtx.restore();
+
+  } else if(depth === 'visceral'){
+    hatchOffCtx.fillStyle = 'rgba(0,0,0,0.45)';
+    for(let row = 0; row * dotStep < S + dotStep; row++){
+      const xOff = (row % 2) * (dotStep * 0.5);
+      for(let col = 0; col * dotStep < S + dotStep; col++){
+        hatchOffCtx.beginPath();
+        hatchOffCtx.arc(col * dotStep + xOff, row * dotStep, dotR, 0, Math.PI * 2);
+        hatchOffCtx.fill();
+      }
+    }
+  }
+
+  hatchOffCtx.globalCompositeOperation = 'destination-in';
+  hatchOffCtx.drawImage(shapeSrc, 0, 0);
+  hatchOffCtx.globalCompositeOperation = 'source-over';
+}
+
+function applyPattern(targetCtx, shapeSrc, depth, alpha, br){
+  if(depth === 'skin' || depth === 'eraser') return;
+  buildHatchOverlay(shapeSrc, depth, br);
+  targetCtx.save();
+  targetCtx.globalAlpha = alpha;
+  targetCtx.drawImage(hatchOff, 0, 0);
+  targetCtx.restore();
+}
+
+function rebuildDisplay(mesh){
+  const {cv, cvS, cvD, ctxD, tex, _strokeActive} = mesh.userData;
+  ctxD.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
+  ctxD.drawImage(cv, 0, 0);
+  if(_strokeActive){
+    const ia = intensity / 10;
+    ctxD.save(); ctxD.globalAlpha = ia; ctxD.drawImage(cvS, 0, 0); ctxD.restore();
+    applyPattern(ctxD, cvS, strokeDepth, ia, strokeBr);
+  }
+  tex.needsUpdate = true;
+}
+
+function bakeStroke(){
+  for(const mesh of bodyParts){
+    if(!mesh.userData._strokeActive) continue;
+    const {cv, ctx, cvS, ctxS} = mesh.userData;
+    const ia = intensity / 10;
+    ctx.save(); ctx.globalAlpha = ia; ctx.drawImage(cvS, 0, 0); ctx.restore();
+    applyPattern(ctx, cvS, strokeDepth, ia, strokeBr);  /* bake pattern into base too */
+    ctxS.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
+    mesh.userData._strokeActive = false;
+    rebuildDisplay(mesh);
+  }
+}
+
+function paintAt(mesh, hit){
+  const uv = hit.uv;
+  if(!uv) return;
+  const part = mesh.userData;
+  const br   = Math.min(brushSize * BR_SCALE, TEX_SIZE * 0.28);
+  const cx   = uv.x * TEX_SIZE;
+  const cy   = (1 - uv.y) * TEX_SIZE;
+
+  if(activeDepth === 'eraser'){
+    /* Erase from the committed base canvas */
+    part.ctx.save();
+    part.ctx.globalCompositeOperation = 'destination-out';
+    const gr = part.ctx.createRadialGradient(cx,cy,0,cx,cy,br);
+    gr.addColorStop(0,   'rgba(0,0,0,1)');
+    gr.addColorStop(0.6, 'rgba(0,0,0,0.8)');
+    gr.addColorStop(1,   'rgba(0,0,0,0)');
+    part.ctx.fillStyle = gr;
+    part.ctx.fillRect(cx-br, cy-br, br*2, br*2);
+    part.ctx.restore();
+    part.ctx.save();
+    part.ctx.globalCompositeOperation = 'destination-over';
+    part.ctx.fillStyle = SKIN_STR;
+    part.ctx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+    part.ctx.restore();
+    rebuildDisplay(mesh);
+    return;
+  }
+
+  if(!activePain) return;
+  const [r,g,b] = hexToRgb(activePain.color);
+  strokeBr = br;   /* keep in sync so pattern scales match brush */
+  paintCircle(part.ctxS, cx, cy, br, r, g, b, activeDepth);
+  part._strokeActive = true;
+  rebuildDisplay(mesh);
+
+  paintLog.push({
+    partName: part.name, uvx: uv.x, uvy: uv.y,
+    brushUV: br / TEX_SIZE,
+    painId: activePain.id, label: activePain.label,
+    color: activePain.color, depth: activeDepth,
+  });
+  if(paintLog.length > 4000) paintLog.splice(0, 800);
+}
+
+/* ── Cursor ring ──────────────────────────────────────────────────── */
+function updateRing(screenX, screenY){
+  const br      = Math.min(brushSize * BR_SCALE, TEX_SIZE * 0.28);
+  const rect    = cvEl.getBoundingClientRect();
+  const screenR = (br / TEX_SIZE) * rect.width * 0.55;
+  ring.style.width       = screenR*2 + 'px';
+  ring.style.height      = screenR*2 + 'px';
+  ring.style.borderColor = activePain ? hexToRgba(activePain.color, 0.75) : 'rgba(20,20,40,0.55)';
+  ring.style.left        = screenX + 'px';
+  ring.style.top         = screenY + 'px';
+}
+
+/* ── Raycasting ─────────────────────────────────────────────── */
+const raycaster = new THREE.Raycaster();
+
+function ndcFromEvent(e){
+  const rect = cvEl.getBoundingClientRect();
+  return new THREE.Vector2(
+    ((e.clientX-rect.left)/rect.width)*2-1,
+    -((e.clientY-rect.top)/rect.height)*2+1
+  );
+}
+
+cvEl.addEventListener('pointerenter', ()=>{ ring.style.display='block'; });
+cvEl.addEventListener('pointerleave', ()=>{
+  ring.style.display='none'; tip.style.display='none';
+  isPainting=false; controls.enabled=true;
+});
+
+cvEl.addEventListener('pointerdown', e=>{
+  if(e.button !== 0){ updateRing(e.clientX, e.clientY); return; }
+  raycaster.setFromCamera(ndcFromEvent(e), camera);
+  const hits = raycaster.intersectObjects(bodyParts, false);
+  if(hits.length && (activePain || activeDepth === 'eraser')){
+    bakeStroke();               /* commit previous stroke at current intensity */
+    for(const m of bodyParts) m.userData.ctxS.clearRect(0,0,TEX_SIZE,TEX_SIZE);
+    strokeDepth = activeDepth;  /* lock depth for this stroke */
+    controls.enabled=false; isPainting=true;
+    paintAt(hits[0].object, hits[0]);
+  }
+  updateRing(e.clientX, e.clientY);
+});
+
+cvEl.addEventListener('pointermove', e=>{
+  updateRing(e.clientX, e.clientY);
+
+  if(isPainting){
+    raycaster.setFromCamera(ndcFromEvent(e), camera);
+    const hits = raycaster.intersectObjects(bodyParts, false);
+    if(hits.length) paintAt(hits[0].object, hits[0]);
+    return;
+  }
+
+  /* Hover tooltip */
+  raycaster.setFromCamera(ndcFromEvent(e), camera);
+  const hits = raycaster.intersectObjects(bodyParts, false);
+  if(hits.length){
+    const mesh = hits[0].object;
+    const uv   = hits[0].uv;
+    if(uv){
+      const partName = mesh.userData.name;
+      const nearby   = paintLog.filter(s =>
+        s.partName === partName &&
+        Math.hypot(s.uvx-uv.x, s.uvy-uv.y) < s.brushUV * 1.5
+      );
+      if(nearby.length){
+        const seen = new Map();
+        for(const s of nearby) if(!seen.has(s.painId)) seen.set(s.painId, s);
+        tip.innerHTML = [...seen.values()].map(s=>
+          `<div class="tc"><span class="tc-dot" style="background:${s.color}"></span>
+           <span class="tc-name">${s.label}</span>
+           <span class="tc-depth">${s.depth}</span></div>`
+        ).join('');
+        tip.style.display='block';
+        const tipW = tip.offsetWidth;
+        const left = e.clientX+18+tipW > innerWidth ? e.clientX-tipW-10 : e.clientX+18;
+        tip.style.left = left+'px'; tip.style.top = (e.clientY-10)+'px';
+        return;
+      }
+    }
+  }
+  tip.style.display='none';
+});
+
+cvEl.addEventListener('pointerup', ()=>{
+  if(isPainting) bakeStroke();   /* commit stroke at final intensity */
+  isPainting=false; controls.enabled=true;
+});
+
+/* ── Pain selection events ──────────────────────────────────── */
+document.addEventListener('painselect', e=>{
+  activePain = e.detail;
+  typeDot.style.background  = activePain.color;
+  typeName.textContent      = activePain.label;
+  typeName.classList.add('live');
+  document.getElementById('paint-bar').style.setProperty('--map-accent', activePain.color);
+  hint.classList.add('hidden');
+  document.querySelectorAll('.pslider').forEach(s=>s.style.accentColor=activePain.color);
+});
+
+document.addEventListener('paindeselect', ()=>{
+  activePain = null;
+  typeDot.style.background = '';
+  typeName.textContent     = '—';
+  typeName.classList.remove('live');
+  hint.classList.remove('hidden');
+});
+
+/* ── Depth buttons ──────────────────────────────────────────── */
+document.querySelectorAll('.dep').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.dep').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    activeDepth = btn.dataset.d;
+  });
+});
+
+/* ── Brush size ─────────────────────────────────────────────── */
+const brushSlider = document.getElementById('brush-sz');
+const brushVal    = document.getElementById('brush-val');
+brushSlider.addEventListener('input', ()=>{
+  brushSize = parseInt(brushSlider.value, 10);
+  brushVal.textContent = brushSize;
+});
+
+/* ── Intensity slider ───────────────────────────────────────── */
+const intSlider = document.getElementById('intensity-sl');
+const intVal    = document.getElementById('int-val');
+intSlider.addEventListener('input', ()=>{
+  intensity = parseInt(intSlider.value, 10);
+  intVal.textContent = intensity;
+});
+
+/* ── Clear ──────────────────────────────────────────────────── */
+document.getElementById('clear-btn').addEventListener('click',()=>{
+  for(const mesh of bodyParts){
+    const {ctx, ctxS, ctxD, tex} = mesh.userData;
+    ctx.fillStyle  = SKIN_STR; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+    ctxS.clearRect(0,0,TEX_SIZE,TEX_SIZE);
+    ctxD.fillStyle = SKIN_STR; ctxD.fillRect(0,0,TEX_SIZE,TEX_SIZE);
+    mesh.userData._strokeActive = false;
+    tex.needsUpdate=true;
+  }
+  paintLog.length=0;
+});
+
+/* ── Render loop ─────────────────────────────────────────────── */
+resize();
+(function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+})();
+
+</script>
+</body>
+</html>
