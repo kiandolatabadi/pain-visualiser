@@ -49,6 +49,13 @@
       background:var(--bg);
     }
     #three-canvas { flex:1; display:block; width:100%; outline:none; }
+    /* Compare mode: a second, fully independent canvas + WebGL context
+       instead of scissor-splitting one canvas. Two separate contexts
+       can't have the cross-region rendering bugs that technique hit on
+       real iOS/iPadOS — each just renders its own scene normally. */
+    #three-canvas-b { flex:1; display:none; width:100%; outline:none; }
+    body.compare-active #map-panel { flex-direction:row; }
+    body.compare-active #three-canvas-b { display:block; }
     #map-hint {
       position:absolute; top:50%; left:50%;
       transform:translate(-50%,-50%);
@@ -602,6 +609,7 @@
   <!-- Full-screen body map (behind everything) -->
   <div id="map-panel">
     <canvas id="three-canvas"></canvas>
+    <canvas id="three-canvas-b"></canvas>
     <button id="pt-btn">Patients</button>
     <div id="gender-tog">
       <button class="gtog on" data-g="male">&#9794; Male</button>
@@ -734,7 +742,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v10</div>
+<div id="app-version">v11</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1198,6 +1206,7 @@ const TAU = Math.PI * 2;
 
 /* ── DOM ────────────────────────────────────────────────────── */
 const cvEl    = document.getElementById('three-canvas');
+const cvElB   = document.getElementById('three-canvas-b');
 const hint    = document.getElementById('map-hint');
 const typeDot = document.getElementById('type-dot');
 const typeName= document.getElementById('type-name');
@@ -1205,28 +1214,36 @@ const tip     = document.getElementById('hover-tip');
 const ring    = document.getElementById('cursor-ring');
 
 /* ── Renderer ───────────────────────────────────────────────── */
-/* antialias is off: MSAA + scissor-splitting one canvas into two regions
-   in a single frame (compare mode) is a known-fragile combination on
-   mobile tile-based GPUs specifically — the MSAA resolve step can end
-   up compositing only one region across the whole canvas instead of
-   respecting the scissor rect. Desktop GPUs mostly tolerate it, which is
-   why this only showed up on a real phone. High-DPI rendering (capped
-   2x pixel ratio above) already smooths edges substantially without it. */
 const renderer = new THREE.WebGLRenderer({ canvas:cvEl, antialias:false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setClearColor(0xededea, 1);
 
+/* Compare mode's second view: its own renderer on its own canvas, not a
+   scissored region of the main one — see buildCompareScene/enterCompareMode. */
+const rendererB = new THREE.WebGLRenderer({ canvas:cvElB, antialias:false });
+rendererB.setPixelRatio(Math.min(devicePixelRatio, 2));
+rendererB.setClearColor(0xededea, 1);
+
+/* Reads each canvas's OWN laid-out size (not its parent's) — #map-panel
+   is a flex row when compare mode is active, so the two canvases split
+   the width between them and each needs its own independent size/aspect. */
 function resize(){
-  const w = cvEl.parentElement.clientWidth;
-  const h = cvEl.parentElement.clientHeight;
+  const w = cvEl.clientWidth, h = cvEl.clientHeight;
   if(w<1||h<1) return;
   renderer.setSize(w, h);
-  if(!compareActive){
-    camera.aspect = w/h;
-    camera.updateProjectionMatrix();
-  }
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
 }
-new ResizeObserver(resize).observe(cvEl.parentElement);
+new ResizeObserver(resize).observe(cvEl);
+
+function resizeB(){
+  const w = cvElB.clientWidth, h = cvElB.clientHeight;
+  if(w<1||h<1) return;
+  rendererB.setSize(w, h);
+  cameraB.aspect = w/h;
+  cameraB.updateProjectionMatrix();
+}
+new ResizeObserver(resizeB).observe(cvElB);
 
 /* ── Scene ──────────────────────────────────────────────────── */
 const scene = new THREE.Scene();
@@ -1234,6 +1251,11 @@ scene.fog   = new THREE.FogExp2(0xededea, 0.009);
 
 const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 120);
 camera.position.set(0, 8, 28);
+
+/* Mirrors camera's position/orientation every frame while compareActive
+   (see render loop) so both panes always show the same viewpoint —
+   only the painted content differs, matching the original design intent. */
+const cameraB = new THREE.PerspectiveCamera(44, 1, 0.1, 120);
 
 const controls = new OrbitControls(camera, cvEl);
 controls.target.set(0, 8, 0);
@@ -1806,21 +1828,11 @@ resize();
 (function animate(){
   requestAnimationFrame(animate);
   controls.update();
+  renderer.render(scene, camera);
   if(compareActive && compareSceneB){
-    const el = renderer.domElement;
-    const w = el.width, h = el.height, hw = Math.floor(w/2);
-    renderer.setScissorTest(true);
-    renderer.setScissor(0, 0, hw, h);
-    renderer.setViewport(0, 0, hw, h);
-    camera.aspect = hw/h; camera.updateProjectionMatrix();
-    renderer.render(scene, camera);
-    renderer.setScissor(hw, 0, w-hw, h);
-    renderer.setViewport(hw, 0, w-hw, h);
-    camera.aspect = (w-hw)/h; camera.updateProjectionMatrix();
-    renderer.render(compareSceneB, camera);
-    renderer.setScissorTest(false);
-  } else {
-    renderer.render(scene, camera);
+    cameraB.position.copy(camera.position);
+    cameraB.quaternion.copy(camera.quaternion);
+    rendererB.render(compareSceneB, cameraB);
   }
 })();
 
@@ -1991,22 +2003,25 @@ async function enterCompareMode(sA,sB){
   restoreSession(sA);
   await buildCompareScene(sB);
   compareActive=true;
+  document.body.classList.add('compare-active');
   document.getElementById('cmp-bar').classList.remove('hidden');
   document.getElementById('cmp-divider').style.display='block';
   document.getElementById('cmp-label-a').textContent=sA.label+' · '+sA.date;
   document.getElementById('cmp-label-b').textContent=sB.label+' · '+sB.date;
   document.getElementById('cards-panel').style.display='none';
   document.getElementById('paint-bar').style.display='none';
+  /* Canvas B just went from display:none to a real flex size — resize
+     synchronously rather than waiting for the ResizeObserver callback,
+     so the very first compare-mode frame renders at the correct size. */
+  resizeB();
 }
 
 function exitCompareMode(){
   compareActive=false;
   disposeCompareScene();
+  document.body.classList.remove('compare-active');
   document.getElementById('cmp-bar').classList.add('hidden');
   document.getElementById('cmp-divider').style.display='none';
-  const w=renderer.domElement.width, h=renderer.domElement.height;
-  camera.aspect=w/h; camera.updateProjectionMatrix();
-  renderer.setViewport(0,0,w,h);
   document.getElementById('cards-panel').style.display='';
   document.getElementById('paint-bar').style.display='';
   /* Defensive full reset: if compare mode was entered/exited around a
