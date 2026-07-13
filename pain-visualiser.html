@@ -742,7 +742,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v11</div>
+<div id="app-version">v12</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1824,12 +1824,28 @@ document.getElementById('clear-btn').addEventListener('click',()=>{
 /* ── Render loop ─────────────────────────────────────────────── */
 let compareActive = false;
 let compareSceneB = null;
+let lastSizeB = [0, 0];
 resize();
 (function animate(){
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
   if(compareActive && compareSceneB){
+    /* Recompute size/aspect from the canvas's actual current CSS size
+       every frame instead of trusting a one-time measurement from when
+       compare mode was entered — that earlier read can race with the
+       flex layout change (#map-panel switching to a row), leaving
+       rendererB/cameraB sized for the wrong (often full-width,
+       pre-split) canvas and rendering the body shrunk/cropped into a
+       corner instead of centered. Guarded so the WebGL buffer is only
+       reallocated on an actual size change, not every frame. */
+    const wB = cvElB.clientWidth, hB = cvElB.clientHeight;
+    if(wB>=1 && hB>=1 && (lastSizeB[0]!==wB || lastSizeB[1]!==hB)){
+      lastSizeB[0]=wB; lastSizeB[1]=hB;
+      rendererB.setSize(wB, hB);
+      cameraB.aspect = wB/hB;
+      cameraB.updateProjectionMatrix();
+    }
     cameraB.position.copy(camera.position);
     cameraB.quaternion.copy(camera.quaternion);
     rendererB.render(compareSceneB, cameraB);
