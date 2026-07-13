@@ -29,12 +29,18 @@
     body {
       background:var(--bg); color:var(--text);
       font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      height:100vh;
+      height:100vh; height:100dvh;
       -webkit-tap-highlight-color:transparent;
     }
 
     /* ── ROOT LAYOUT ─────────────────────────────────────────── */
-    #app { position:relative; width:100vw; height:100vh; overflow:hidden; }
+    /* 100dvh (not just 100vh) matters here: iOS Safari's address bar can
+       stay visible (nothing here scrolls to trigger its auto-hide), so a
+       100vh box is taller than what's actually on screen — anything
+       pinned to its bottom edge (like the paint bar) renders below the
+       visible fold. dvh tracks the real visible viewport instead; browsers
+       that don't support it simply ignore this override and keep 100vh. */
+    #app { position:relative; width:100vw; height:100vh; height:100dvh; overflow:hidden; }
 
     /* Body map fills entire screen */
     #map-panel {
