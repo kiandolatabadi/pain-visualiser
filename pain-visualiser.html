@@ -503,20 +503,26 @@
         font-size:0.66rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
         color:var(--dim);
       }
-      #cards-toggle-icon { transition:transform 0.25s ease; }
+      #cards-toggle-icon { font-size:1.3rem; font-weight:900; line-height:1; transition:transform 0.25s ease; }
       body.cards-expanded #cards-toggle-icon { transform:rotate(180deg); }
 
       .grid { grid-template-columns:repeat(2,1fr); gap:0.6rem; }
 
-      /* Paint bar: keep the active-type indicator fixed and visible,
-         everything else (depth/brush/intensity/clear) becomes one
-         compact horizontally-scrolling row instead of wrapping into a
-         tall multi-row block or clipping off the edge. Nothing is
-         hidden — brush/intensity stay fully labeled, just swipeable. */
+      /* Paint bar: full-width, flush to the bottom edge (covers the whole
+         bottom margin) rather than an inset floating pill — gives the
+         scrollable controls more width, and the currently-active type/
+         depth stays clearly visible instead of looking like it vanished.
+         Keep the active-type indicator fixed and visible; everything
+         else (depth/brush/intensity/clear) becomes one compact
+         horizontally-scrolling row instead of wrapping into a tall
+         multi-row block or clipping off the edge. Nothing is hidden —
+         brush/intensity stay fully labeled, just swipeable. */
       #paint-bar {
-        left:0.6rem; right:0.6rem;
-        bottom:calc(0.6rem + env(safe-area-inset-bottom,0px));
-        padding:0.55rem 0.7rem; gap:0.5rem;
+        left:0; right:0; bottom:0;
+        border-radius:16px 16px 0 0;
+        border-left:none; border-right:none; border-bottom:none;
+        padding:0.6rem 0.7rem calc(0.6rem + env(safe-area-inset-bottom,0px));
+        gap:0.5rem;
         flex-wrap:nowrap;
       }
       #type-ind { flex-shrink:0; }
@@ -1104,6 +1110,7 @@ for(const [gridId, types] of Object.entries(REG)){
         document.querySelectorAll('.card').forEach(c=>{ if(c!==card) c.classList.add('faded'); });
         document.body.classList.add('has-selection');
         document.body.classList.remove('cards-expanded');
+        document.getElementById('cards-wrapper').scrollTop = 0;
         document.dispatchEvent(new CustomEvent('painselect',{detail:{id:type.id,label:type.label,color:type.accent}}));
       }
     });
@@ -1122,9 +1129,32 @@ for(const [gridId, types] of Object.entries(REG)){
     canvas.addEventListener('mousedown',   e=>{ const p=toCV(e); fx.onDown(p.x,p.y); });
     canvas.addEventListener('mousemove',   e=>{ const p=toCV(e); fx.onMove(p.x,p.y); });
     canvas.addEventListener('mouseup',     ()=>fx.onUp());
-    canvas.addEventListener('touchstart',  e=>{ e.preventDefault(); card.classList.add('active'); const p=toCV(e,true); fx.onDown(p.x,p.y); },{passive:false});
-    canvas.addEventListener('touchmove',   e=>{ e.preventDefault(); const p=toCV(e,true); fx.onMove(p.x,p.y); },{passive:false});
-    canvas.addEventListener('touchend',    e=>{ e.preventDefault(); fx.onUp(); fx.onLeave(); },{passive:false});
+
+    /* Touch: distinguish "scrolling the list" from "poking the preview".
+       Don't claim the gesture on touchstart — only once the finger has
+       clearly stayed put (a tap/press) do we treat it as an interaction
+       and block scroll; a vertical drag is left alone so the browser's
+       native scroll still works even when the gesture starts on a card. */
+    let touchStart=null, touchScrolling=false;
+    canvas.addEventListener('touchstart', e=>{
+      const t=e.touches[0]; touchStart={x:t.clientX,y:t.clientY}; touchScrolling=false;
+      card.classList.add('active');
+      const p=toCV(e,true); fx.onDown(p.x,p.y);
+    },{passive:true});
+    canvas.addEventListener('touchmove', e=>{
+      const t=e.touches[0];
+      if(!touchScrolling && touchStart){
+        const dx=Math.abs(t.clientX-touchStart.x), dy=Math.abs(t.clientY-touchStart.y);
+        if(dy>8 && dy>dx){ touchScrolling=true; card.classList.remove('active'); fx.onLeave(); }
+      }
+      if(touchScrolling) return;
+      e.preventDefault();
+      const p=toCV(e,true); fx.onMove(p.x,p.y);
+    },{passive:false});
+    canvas.addEventListener('touchend', e=>{
+      if(!touchScrolling){ e.preventDefault(); fx.onUp(); fx.onLeave(); }
+      touchStart=null; touchScrolling=false;
+    },{passive:false});
   }
 }
 
@@ -1196,14 +1226,10 @@ controls.dampingFactor= 0.08;
 controls.enableZoom   = false;   /* we handle zoom manually for cursor-targeted dolly */
 controls.update();
 
-/* Cursor-targeted zoom: dolly camera toward/away from the point under cursor */
-cvEl.addEventListener('wheel', e => {
-  e.preventDefault();
-  const rect  = cvEl.getBoundingClientRect();
-  const ndc   = new THREE.Vector2(
-    ((e.clientX - rect.left) / rect.width)  * 2 - 1,
-    -((e.clientY - rect.top) / rect.height) * 2 + 1
-  );
+/* Cursor/finger-targeted zoom: dolly camera toward/away from a screen point.
+   Shared by wheel (mouse) and pinch (touch) — enableZoom is off above so
+   OrbitControls never does its own (non-targeted) zoom for either input. */
+function dollyAt(ndc, factor){
   const ray = new THREE.Raycaster();
   ray.setFromCamera(ndc, camera);
 
@@ -1219,7 +1245,6 @@ cvEl.addEventListener('wheel', e => {
 
   const toTarget = targetPt.clone().sub(camera.position);
   const tLen     = toTarget.length();
-  const factor   = e.deltaY > 0 ? -0.12 : 0.12;   /* scroll-down = zoom-out */
   const dolly    = tLen * factor * 1.4;
   const dist     = camera.position.distanceTo(controls.target);
   const newDist  = dist - dolly;
@@ -1227,7 +1252,41 @@ cvEl.addEventListener('wheel', e => {
   camera.position.addScaledVector(toTarget.normalize(), dolly);
   controls.target.addScaledVector(toTarget.normalize(), dolly * 0.45);
   controls.update();
+}
+
+function ndcFromClientXY(x, y){
+  const rect = cvEl.getBoundingClientRect();
+  return new THREE.Vector2(((x-rect.left)/rect.width)*2-1, -((y-rect.top)/rect.height)*2+1);
+}
+
+cvEl.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? -0.12 : 0.12;   /* scroll-down = zoom-out */
+  dollyAt(ndcFromClientXY(e.clientX, e.clientY), factor);
 }, { passive: false });
+
+/* Pinch-to-zoom: mirrors the wheel handler above. OrbitControls already
+   handles two-finger drag as pan (screenSpacePanning), this only adds
+   the missing distance-change (pinch) component on top of it. */
+let pinchDist = null;
+function touchDist(t0, t1){ return Math.hypot(t0.clientX-t1.clientX, t0.clientY-t1.clientY); }
+cvEl.addEventListener('touchstart', e=>{
+  if(e.touches.length===2) pinchDist = touchDist(e.touches[0], e.touches[1]);
+}, { passive:true });
+cvEl.addEventListener('touchmove', e=>{
+  if(e.touches.length!==2 || pinchDist==null) return;
+  e.preventDefault();
+  const d = touchDist(e.touches[0], e.touches[1]);
+  const delta = d - pinchDist;
+  if(Math.abs(delta) > 1.5){
+    const mx=(e.touches[0].clientX+e.touches[1].clientX)/2, my=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    dollyAt(ndcFromClientXY(mx,my), delta * 0.006);
+    pinchDist = d;
+  }
+}, { passive:false });
+cvEl.addEventListener('touchend', e=>{
+  if(e.touches.length<2) pinchDist = null;
+}, { passive:true });
 
 /* ── Lighting ───────────────────────────────────────────────── */
 scene.add(new THREE.AmbientLight(0xffffff, 0.75));

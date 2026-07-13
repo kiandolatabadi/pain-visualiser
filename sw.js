@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pain-visualiser-v4';
+const CACHE_NAME = 'pain-visualiser-v5';
 
 const PRECACHE_URLS = [
   './pain-visualiser.html',
