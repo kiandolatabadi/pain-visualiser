@@ -1888,6 +1888,23 @@ function captureSession(label){
   return { id:genId(), date:todayStr(), label:label||todayStr(), gender:activeGender, textures:tex };
 }
 
+/* Loads a data-URL image but never hangs or throws — mobile devices can
+   fail/stall decoding a data URL under memory pressure with no error
+   event at all, which would otherwise leave a Promise.all() pending
+   forever. Always settles within timeoutMs, resolving null on failure
+   so callers can just skip that texture instead of getting stuck. */
+function loadImage(url, timeoutMs=6000){
+  return new Promise(resolve=>{
+    let done=false;
+    const finish=(result)=>{ if(done) return; done=true; resolve(result); };
+    const img=new Image();
+    img.onload = ()=>finish(img);
+    img.onerror = ()=>finish(null);
+    setTimeout(()=>finish(null), timeoutMs);
+    img.src=url;
+  });
+}
+
 function restoreSession(sess){
   if(sess.gender!==activeGender){
     switchGender(sess.gender);
@@ -1895,16 +1912,15 @@ function restoreSession(sess){
   }
   for(const mesh of modelData[sess.gender].parts){
     const url=sess.textures[mesh.userData.name]; if(!url) continue;
-    const img=new Image();
-    img.onload=()=>{
+    loadImage(url).then(img=>{
+      if(!img) { console.error('[PV] texture load failed/timed out for', mesh.userData.name); return; }
       const {ctx,ctxS}=mesh.userData;
       ctx.fillStyle=SKIN_STR; ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
       ctx.drawImage(img,0,0);
       ctxS.clearRect(0,0,TEX_SIZE,TEX_SIZE);
       mesh.userData._strokeActive=false;
       rebuildDisplay(mesh);
-    };
-    img.src=url;
+    });
   }
 }
 
@@ -1930,14 +1946,11 @@ async function buildCompareScene(sess){
     const mat=new THREE.MeshPhongMaterial({specular:0x221100,shininess:18,side:THREE.DoubleSide});
     child.material=mat;
     const url=sess.textures[child.userData.name||child.name];
-    if(url) promises.push(new Promise(res=>{
-      const img=new Image();
-      img.onload=()=>{
-        const cv=document.createElement('canvas'); cv.width=cv.height=TEX_SIZE;
-        cv.getContext('2d').drawImage(img,0,0);
-        mat.map=new THREE.CanvasTexture(cv); mat.needsUpdate=true; res();
-      };
-      img.src=url;
+    if(url) promises.push(loadImage(url).then(img=>{
+      if(!img){ console.error('[PV] compare texture load failed/timed out for', child.userData.name||child.name); return; }
+      const cv=document.createElement('canvas'); cv.width=cv.height=TEX_SIZE;
+      cv.getContext('2d').drawImage(img,0,0);
+      mat.map=new THREE.CanvasTexture(cv); mat.needsUpdate=true;
     }));
   });
   compareSceneB.add(modelClone);
@@ -1976,6 +1989,11 @@ function exitCompareMode(){
   renderer.setViewport(0,0,w,h);
   document.getElementById('cards-panel').style.display='';
   document.getElementById('paint-bar').style.display='';
+  /* Defensive full reset: if compare mode was entered/exited around a
+     stuck gesture or a failed load, don't leave painting disabled or
+     the phone's collapsible pain-type panel stuck open. */
+  document.body.classList.remove('cards-expanded');
+  controls.enabled=true; isPainting=false;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -2110,7 +2128,13 @@ document.getElementById('pp-cmp-go').addEventListener('click',async()=>{
   const sA=pt.sessions.find(s=>s.id===sidA), sB=pt.sessions.find(s=>s.id===sidB);
   if(!sA||!sB) return;
   closePtPanel();
-  await enterCompareMode(sA,sB);
+  try{
+    await enterCompareMode(sA,sB);
+  }catch(e){
+    console.error('[PV] enterCompareMode failed', e);
+    alert('Could not open the comparison view. Try again — if this keeps happening, try one session at a time.');
+    exitCompareMode();
+  }
 });
 document.getElementById('cmp-exit').addEventListener('click',exitCompareMode);
 
