@@ -240,6 +240,14 @@
     }
     #clear-btn:hover { color:#c62828; border-color:#c62828; }
 
+    /* Invisible on desktop: children behave as direct #paint-bar flex items,
+       identical to before this wrapper existed. Only becomes a real
+       scroll container in the PHONE media query below. */
+    #paint-scroll { display:contents; }
+
+    /* Collapsible pain-type toggle — desktop/tablet: never shown */
+    #cards-toggle { display:none; }
+
     /* ── HOVER TOOLTIP ──────────────────────────────────────── */
     #hover-tip {
       position:fixed; display:none; z-index:200;
@@ -472,22 +480,55 @@
        RESPONSIVE — PHONE (<=600px)
        ══════════════════════════════════════════════════════════════ */
     @media (max-width:600px) {
+      /* Pain-type panel: docked at the TOP, collapsed to a slim toggle
+         strip by default once a type is picked — the paint bar's own
+         #type-ind already shows the active type, so the full grid only
+         needs to be visible on demand, not permanently competing with
+         the 3D canvas for screen space. */
       body.has-selection #cards-wrapper {
-        left:0; right:0; top:auto; bottom:0; width:auto; transform:none;
-        border-radius:20px 20px 0 0; max-height:60vh;
-        padding-bottom:env(safe-area-inset-bottom,0px);
-        transition:bottom 0.45s cubic-bezier(.4,0,.2,1), box-shadow 0.3s;
+        left:0; right:0; top:calc(3.1rem + env(safe-area-inset-top,0px)); bottom:auto;
+        width:auto; transform:none;
+        border-radius:0 0 18px 18px;
+        max-height:3rem; overflow-y:hidden;
+        transition:max-height 0.28s ease;
       }
+      body.has-selection.cards-expanded #cards-wrapper {
+        max-height:min(52vh, calc(100vh - 3.1rem - env(safe-area-inset-top,0px) - 5.5rem));
+        overflow-y:auto;
+      }
+      #cards-toggle {
+        display:flex; align-items:center; justify-content:space-between;
+        width:100%; padding:0.8rem 1rem;
+        background:none; border:none; cursor:pointer;
+        font-size:0.66rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+        color:var(--dim);
+      }
+      #cards-toggle-icon { transition:transform 0.25s ease; }
+      body.cards-expanded #cards-toggle-icon { transform:rotate(180deg); }
 
       .grid { grid-template-columns:repeat(2,1fr); gap:0.6rem; }
 
+      /* Paint bar: keep the active-type indicator fixed and visible,
+         everything else (depth/brush/intensity/clear) becomes one
+         compact horizontally-scrolling row instead of wrapping into a
+         tall multi-row block or clipping off the edge. Nothing is
+         hidden — brush/intensity stay fully labeled, just swipeable. */
       #paint-bar {
         left:0.6rem; right:0.6rem;
         bottom:calc(0.6rem + env(safe-area-inset-bottom,0px));
-        padding:0.6rem 0.8rem; gap:0.6rem;
+        padding:0.55rem 0.7rem; gap:0.5rem;
+        flex-wrap:nowrap;
+      }
+      #type-ind { flex-shrink:0; }
+      #type-name { max-width:22vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      #paint-scroll {
+        display:flex; align-items:center; gap:0.5rem;
+        flex:1; min-width:0;
+        overflow-x:auto; -webkit-overflow-scrolling:touch;
       }
       .bar-sep { display:none; }
-      input[type=range].pslider { width:78px; }
+      #depth-bar, .dep, .ctrl-grp, #clear-btn { flex-shrink:0; }
+      input[type=range].pslider { width:64px; }
       .ctrl-lbl { font-size:0.6rem; }
 
       #pt-panel {
@@ -505,11 +546,19 @@
       #cmp-exit { font-size:0; padding:0.4rem 0.55rem; }
       #cmp-exit::before { content:'\2715'; font-size:0.75rem; }
 
+      /* Gender toggle moves off-center to the right edge so it can
+         never overlap the Patients button pinned at the left — on a
+         desktop-width centered pill, the two collided on narrow phones. */
       #pt-btn {
         top:calc(0.9rem + env(safe-area-inset-top,0px));
         left:calc(0.9rem + env(safe-area-inset-left,0px));
+        padding:0.3rem 0.6rem; font-size:0.62rem;
       }
-      #gender-tog { top:calc(1rem + env(safe-area-inset-top,0px)); }
+      #gender-tog {
+        left:auto; right:calc(0.6rem + env(safe-area-inset-right,0px)); transform:none;
+        top:calc(0.9rem + env(safe-area-inset-top,0px));
+      }
+      .gtog { padding:0.4rem 0.75rem; font-size:0.62rem; }
     }
     </style>
 
@@ -593,6 +642,10 @@
 
   <!-- Floating cards panel -->
   <div id="cards-wrapper">
+    <button id="cards-toggle" type="button">
+      <span id="cards-toggle-label">Change pain type</span>
+      <span id="cards-toggle-icon">&#9662;</span>
+    </button>
     <div id="cards-panel">
       <header>
         <h1>Pain Visualiser</h1>
@@ -624,31 +677,33 @@
       <div id="type-name">—</div>
     </div>
 
-    <div class="bar-sep"></div>
+    <div id="paint-scroll">
+      <div class="bar-sep"></div>
 
-    <div id="depth-bar">
-      <button class="dep on" data-d="skin"><span class="dico"></span>Skin</button>
-      <button class="dep" data-d="sub"><span class="dico"></span>Sub-Q</button>
-      <button class="dep" data-d="muscular"><span class="dico"></span>Muscle</button>
-      <button class="dep" data-d="visceral"><span class="dico"></span>Visceral</button>
-      <button class="dep dep-eraser" data-d="eraser"><span class="dico"></span>Eraser</button>
+      <div id="depth-bar">
+        <button class="dep on" data-d="skin"><span class="dico"></span>Skin</button>
+        <button class="dep" data-d="sub"><span class="dico"></span>Sub-Q</button>
+        <button class="dep" data-d="muscular"><span class="dico"></span>Muscle</button>
+        <button class="dep" data-d="visceral"><span class="dico"></span>Visceral</button>
+        <button class="dep dep-eraser" data-d="eraser"><span class="dico"></span>Eraser</button>
+      </div>
+
+      <div class="bar-sep"></div>
+
+      <div class="ctrl-grp">
+        <span class="ctrl-lbl">Brush</span>
+        <input type="range" class="pslider" id="brush-sz" min="1" max="20" value="5">
+        <span class="ctrl-val" id="brush-val">5</span>
+      </div>
+
+      <div class="ctrl-grp">
+        <span class="ctrl-lbl">Intensity</span>
+        <input type="range" class="pslider" id="intensity-sl" min="1" max="10" value="5">
+        <span class="ctrl-val" id="int-val">5</span>
+      </div>
+
+      <button id="clear-btn">Clear</button>
     </div>
-
-    <div class="bar-sep"></div>
-
-    <div class="ctrl-grp">
-      <span class="ctrl-lbl">Brush</span>
-      <input type="range" class="pslider" id="brush-sz" min="1" max="20" value="5">
-      <span class="ctrl-val" id="brush-val">5</span>
-    </div>
-
-    <div class="ctrl-grp">
-      <span class="ctrl-lbl">Intensity</span>
-      <input type="range" class="pslider" id="intensity-sl" min="1" max="10" value="5">
-      <span class="ctrl-val" id="int-val">5</span>
-    </div>
-
-    <button id="clear-btn">Clear</button>
   </div>
 </div>
 
@@ -1015,9 +1070,16 @@ const allFx = [];
 function clearSelection(){
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('faded','selected'));
   document.querySelectorAll('.sel.on').forEach(b=>{ b.classList.remove('on'); b.textContent='Select'; });
-  document.body.classList.remove('has-selection');
+  document.body.classList.remove('has-selection','cards-expanded');
   document.dispatchEvent(new CustomEvent('paindeselect'));
 }
+
+/* Phone-only: pain-type panel collapses to a slim toggle strip once a
+   type is picked (see PHONE media query) — tap to bring the grid back
+   to switch types, without it permanently eating canvas space. */
+document.getElementById('cards-toggle').addEventListener('click', ()=>{
+  document.body.classList.toggle('cards-expanded');
+});
 
 for(const [gridId, types] of Object.entries(REG)){
   const grid = document.getElementById(gridId);
@@ -1041,6 +1103,7 @@ for(const [gridId, types] of Object.entries(REG)){
         card.classList.add('selected');
         document.querySelectorAll('.card').forEach(c=>{ if(c!==card) c.classList.add('faded'); });
         document.body.classList.add('has-selection');
+        document.body.classList.remove('cards-expanded');
         document.dispatchEvent(new CustomEvent('painselect',{detail:{id:type.id,label:type.label,color:type.accent}}));
       }
     });
