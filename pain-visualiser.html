@@ -48,12 +48,19 @@
       display:flex; flex-direction:column;
       background:var(--bg);
     }
-    #three-canvas { flex:1; display:block; width:100%; outline:none; }
+    /* min-width/min-height:0 override flex's default min-width:auto,
+       which otherwise refuses to shrink a flex item below its content's
+       intrinsic size — a <canvas> has an intrinsic size (300x150 unless
+       overridden) that flexbox treats as a hard floor by default, so
+       without this, two canvases sharing a flex row each get pushed to
+       (at least) their full intrinsic/container width instead of
+       actually splitting the space, regardless of flex:1. */
+    #three-canvas { flex:1; display:block; width:100%; min-width:0; min-height:0; outline:none; }
     /* Compare mode: a second, fully independent canvas + WebGL context
        instead of scissor-splitting one canvas. Two separate contexts
        can't have the cross-region rendering bugs that technique hit on
        real iOS/iPadOS — each just renders its own scene normally. */
-    #three-canvas-b { flex:1; display:none; width:100%; outline:none; }
+    #three-canvas-b { flex:1; display:none; width:100%; min-width:0; min-height:0; outline:none; }
     body.compare-active #map-panel { flex-direction:row; }
     body.compare-active #three-canvas-b { display:block; }
     #map-hint {
@@ -742,7 +749,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v12</div>
+<div id="app-version">v13</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1226,11 +1233,20 @@ rendererB.setClearColor(0xededea, 1);
 
 /* Reads each canvas's OWN laid-out size (not its parent's) — #map-panel
    is a flex row when compare mode is active, so the two canvases split
-   the width between them and each needs its own independent size/aspect. */
+   the width between them and each needs its own independent size/aspect.
+   setSize's 3rd arg (false) stops three.js from also writing an inline
+   style.width/height on the canvas — otherwise that inline style
+   outranks the CSS flexbox width:100% rule, so once compare mode sets a
+   canvas to its half-width, the canvas gets permanently stuck at that
+   width even after switching back to full-width layout (and since its
+   rendered size never actually changes afterward, the ResizeObserver
+   never fires again either — a true deadlock). Leaving CSS in sole
+   control of the *displayed* size and only using JS to set the
+   *drawing-buffer* resolution avoids that fight entirely. */
 function resize(){
   const w = cvEl.clientWidth, h = cvEl.clientHeight;
   if(w<1||h<1) return;
-  renderer.setSize(w, h);
+  renderer.setSize(w, h, false);
   camera.aspect = w/h;
   camera.updateProjectionMatrix();
 }
@@ -1239,7 +1255,7 @@ new ResizeObserver(resize).observe(cvEl);
 function resizeB(){
   const w = cvElB.clientWidth, h = cvElB.clientHeight;
   if(w<1||h<1) return;
-  rendererB.setSize(w, h);
+  rendererB.setSize(w, h, false);
   cameraB.aspect = w/h;
   cameraB.updateProjectionMatrix();
 }
@@ -1842,7 +1858,7 @@ resize();
     const wB = cvElB.clientWidth, hB = cvElB.clientHeight;
     if(wB>=1 && hB>=1 && (lastSizeB[0]!==wB || lastSizeB[1]!==hB)){
       lastSizeB[0]=wB; lastSizeB[1]=hB;
-      rendererB.setSize(wB, hB);
+      rendererB.setSize(wB, hB, false);
       cameraB.aspect = wB/hB;
       cameraB.updateProjectionMatrix();
     }
