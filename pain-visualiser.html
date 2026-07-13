@@ -749,7 +749,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v14</div>
+<div id="app-version">v15</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -2044,8 +2044,13 @@ async function enterCompareMode(sA,sB){
   document.getElementById('paint-bar').style.display='none';
   /* Canvas B just went from display:none to a real flex size — resize
      synchronously rather than waiting for the ResizeObserver callback,
-     so the very first compare-mode frame renders at the correct size. */
+     so the very first compare-mode frame renders at the correct size.
+     The immediate call handles it on most engines; the double-rAF
+     re-check is a defensive fallback for engines (seen on iOS Safari)
+     that don't always reflect the finished flex layout synchronously
+     right after the class/display toggle that triggered it. */
   resizeB();
+  requestAnimationFrame(() => requestAnimationFrame(resizeB));
 }
 
 function exitCompareMode(){
@@ -2065,8 +2070,15 @@ function exitCompareMode(){
      synchronously (same reasoning as resizeB() on entry) rather than
      solely trusting the ResizeObserver callback, so the very first
      post-exit frame already has the correct aspect instead of looking
-     cropped/off-center until some later resize event happens to fire. */
+     cropped/off-center until some later resize event happens to fire.
+     Real-device testing on iOS Safari showed the immediate call alone
+     isn't always enough — it can still read the pre-toggle flex layout
+     synchronously, leaving canvas A stuck at its compare-mode half-width
+     with the freed half of the row rendering as empty background. The
+     double-rAF re-check re-measures after the browser has definitely
+     finished laying out the reverted (single, full-width) flex row. */
   resize();
+  requestAnimationFrame(() => requestAnimationFrame(resize));
   /* Reset to the standard starting view rather than leaving whatever
      angle/zoom was last orbited to — a clean, predictable state after
      a compare session, and avoids compounding with any lingering
