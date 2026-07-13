@@ -749,7 +749,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v15</div>
+<div id="app-version">v16</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1840,11 +1840,27 @@ document.getElementById('clear-btn').addEventListener('click',()=>{
 /* ── Render loop ─────────────────────────────────────────────── */
 let compareActive = false;
 let compareSceneB = null;
+let lastSizeA = [0, 0];
 let lastSizeB = [0, 0];
 resize();
 (function animate(){
   requestAnimationFrame(animate);
   controls.update();
+  /* Same self-correcting per-frame check as canvas B below — canvas A
+     previously only resized on event-driven triggers (ResizeObserver,
+     explicit calls around compare mode), which real iOS Safari testing
+     showed can miss the moment the flex layout actually finishes
+     reverting to full-width after exiting compare mode, leaving canvas
+     A stuck at its compare-mode half-width indefinitely. Checking every
+     frame instead of trying to catch one specific timing window makes
+     this correct regardless of exactly when iOS settles the layout. */
+  const wA = cvEl.clientWidth, hA = cvEl.clientHeight;
+  if(wA>=1 && hA>=1 && (lastSizeA[0]!==wA || lastSizeA[1]!==hA)){
+    lastSizeA[0]=wA; lastSizeA[1]=hA;
+    renderer.setSize(wA, hA, false);
+    camera.aspect = wA/hA;
+    camera.updateProjectionMatrix();
+  }
   renderer.render(scene, camera);
   if(compareActive && compareSceneB){
     /* Recompute size/aspect from the canvas's actual current CSS size
