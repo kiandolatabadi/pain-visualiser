@@ -749,7 +749,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v16</div>
+<div id="app-version">v17</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -2047,9 +2047,18 @@ function disposeCompareScene(){
   compareSceneB=null;
 }
 
+/* Bumped by both enterCompareMode and exitCompareMode. enterCompareMode
+   is async (awaits texture loading) — if the user exits again while an
+   enter is still in flight, that stale enter must not re-activate
+   compare mode once it finally resolves. Each call captures the id at
+   its start and checks it's still current before applying anything. */
+let compareRequestId = 0;
+
 async function enterCompareMode(sA,sB){
+  const myRequestId = ++compareRequestId;
   restoreSession(sA);
   await buildCompareScene(sB);
+  if(myRequestId !== compareRequestId) return; /* superseded — bail out */
   compareActive=true;
   document.body.classList.add('compare-active');
   document.getElementById('cmp-bar').classList.remove('hidden');
@@ -2070,8 +2079,21 @@ async function enterCompareMode(sA,sB){
 }
 
 function exitCompareMode(){
+  /* Bump first: invalidates any enterCompareMode() still awaiting
+     texture loads, so if it resolves after this point it recognizes
+     it's been superseded and skips re-activating compare mode (see the
+     check at the top of enterCompareMode). */
+  compareRequestId++;
   compareActive=false;
-  disposeCompareScene();
+  /* All UI/state restoration happens first, unconditionally, before the
+     WebGL disposal below — previously disposeCompareScene() ran first,
+     so if it ever threw (real-device WebGL/driver edge case, seen only
+     on iOS), every line after it — removing 'compare-active', restoring
+     the camera/canvas — would never run, leaving canvas A visibly stuck
+     in its compare-mode half-width layout. Restoring the UI can't fail
+     the same way (plain classList/style/camera calls), so doing it
+     first guarantees a full visual reset regardless of what happens
+     during disposal. */
   document.body.classList.remove('compare-active');
   document.getElementById('cmp-bar').classList.add('hidden');
   document.getElementById('cmp-divider').style.display='none';
@@ -2086,13 +2108,7 @@ function exitCompareMode(){
      synchronously (same reasoning as resizeB() on entry) rather than
      solely trusting the ResizeObserver callback, so the very first
      post-exit frame already has the correct aspect instead of looking
-     cropped/off-center until some later resize event happens to fire.
-     Real-device testing on iOS Safari showed the immediate call alone
-     isn't always enough — it can still read the pre-toggle flex layout
-     synchronously, leaving canvas A stuck at its compare-mode half-width
-     with the freed half of the row rendering as empty background. The
-     double-rAF re-check re-measures after the browser has definitely
-     finished laying out the reverted (single, full-width) flex row. */
+     cropped/off-center until some later resize event happens to fire. */
   resize();
   requestAnimationFrame(() => requestAnimationFrame(resize));
   /* Reset to the standard starting view rather than leaving whatever
@@ -2102,6 +2118,12 @@ function exitCompareMode(){
   camera.position.set(0, 8, 28);
   controls.target.set(0, 8, 0);
   controls.update();
+  try{
+    disposeCompareScene();
+  }catch(e){
+    console.error('[PV] disposeCompareScene failed', e);
+    compareSceneB=null;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════
