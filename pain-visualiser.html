@@ -749,7 +749,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v13</div>
+<div id="app-version">v14</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -2061,6 +2061,19 @@ function exitCompareMode(){
      the phone's collapsible pain-type panel stuck open. */
   document.body.classList.remove('cards-expanded');
   controls.enabled=true; isPainting=false;
+  /* Canvas A just went from half-width back to full-width — resize
+     synchronously (same reasoning as resizeB() on entry) rather than
+     solely trusting the ResizeObserver callback, so the very first
+     post-exit frame already has the correct aspect instead of looking
+     cropped/off-center until some later resize event happens to fire. */
+  resize();
+  /* Reset to the standard starting view rather than leaving whatever
+     angle/zoom was last orbited to — a clean, predictable state after
+     a compare session, and avoids compounding with any lingering
+     aspect mismatch from the mode switch. */
+  camera.position.set(0, 8, 28);
+  controls.target.set(0, 8, 0);
+  controls.update();
 }
 
 /* ══════════════════════════════════════════════════════════════════
