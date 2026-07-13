@@ -462,6 +462,18 @@
       display:none; z-index:24;
     }
 
+    /* Small always-visible build tag so it's obvious which deploy is
+       actually loaded — bump the text whenever CACHE_NAME bumps in sw.js. */
+    #app-version {
+      position:fixed; top:0.3rem; right:0.3rem; z-index:999;
+      font-family:monospace; font-size:0.6rem; color:rgba(0,0,0,0.32);
+      background:rgba(255,255,255,0.55); padding:0.05rem 0.35rem; border-radius:6px;
+      pointer-events:none;
+    }
+    @media (max-width:600px){
+      #app-version { top:auto; bottom:calc(3.3rem + env(safe-area-inset-bottom,0px)); right:0.4rem; }
+    }
+
     /* ══════════════════════════════════════════════════════════════
        RESPONSIVE — TOUCH (any touch-primary device, any width)
        ══════════════════════════════════════════════════════════════ */
@@ -722,6 +734,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
+<div id="app-version">v8</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
