@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
   <title>Pain Visualiser</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#1a4fa0">
@@ -446,6 +446,70 @@
       position:absolute; left:calc(50% - 1px); top:0; bottom:0;
       width:2px; background:rgba(0,0,0,0.13); pointer-events:none;
       display:none; z-index:24;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       RESPONSIVE — TOUCH (any touch-primary device, any width)
+       ══════════════════════════════════════════════════════════════ */
+    @media (hover:none) and (pointer:coarse) {
+      .dep { padding:0.58rem 1rem; }
+      #clear-btn { padding:0.6rem 1.1rem; }
+      input[type=range].pslider { height:28px; }
+      .pp-x, .pp-back { width:32px; height:32px; }
+      .pp-pt-del, .pp-sess-del { padding:0.4rem; }
+
+      #hover-tip, #cursor-ring { display:none !important; }
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       RESPONSIVE — TABLET (<=1024px, touch)
+       ══════════════════════════════════════════════════════════════ */
+    @media (max-width:1024px) and (pointer:coarse) {
+      .grid { grid-template-columns:repeat(3,1fr); }
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       RESPONSIVE — PHONE (<=600px)
+       ══════════════════════════════════════════════════════════════ */
+    @media (max-width:600px) {
+      body.has-selection #cards-wrapper {
+        left:0; right:0; top:auto; bottom:0; width:auto; transform:none;
+        border-radius:20px 20px 0 0; max-height:60vh;
+        padding-bottom:env(safe-area-inset-bottom,0px);
+        transition:bottom 0.45s cubic-bezier(.4,0,.2,1), box-shadow 0.3s;
+      }
+
+      .grid { grid-template-columns:repeat(2,1fr); gap:0.6rem; }
+
+      #paint-bar {
+        left:0.6rem; right:0.6rem;
+        bottom:calc(0.6rem + env(safe-area-inset-bottom,0px));
+        padding:0.6rem 0.8rem; gap:0.6rem;
+      }
+      .bar-sep { display:none; }
+      input[type=range].pslider { width:78px; }
+      .ctrl-lbl { font-size:0.6rem; }
+
+      #pt-panel {
+        left:0.6rem; right:0.6rem; width:auto;
+        top:calc(3rem + env(safe-area-inset-top,0px));
+        max-height:calc(100vh - 4rem); overflow-y:auto;
+      }
+
+      #cmp-bar { padding:0.4rem 0.6rem; gap:0.4rem; font-size:0.66rem;
+                 padding-top:calc(0.4rem + env(safe-area-inset-top,0px)); }
+      #cmp-label-a, #cmp-label-b {
+        max-width:28vw; overflow:hidden; text-overflow:ellipsis;
+        white-space:nowrap; display:inline-block;
+      }
+      #cmp-exit { font-size:0; padding:0.4rem 0.55rem; }
+      #cmp-exit::before { content:'\2715'; font-size:0.75rem; }
+
+      #pt-btn {
+        top:calc(0.9rem + env(safe-area-inset-top,0px));
+        left:calc(0.9rem + env(safe-area-inset-left,0px));
+      }
+      #gender-tog { top:calc(1rem + env(safe-area-inset-top,0px)); }
     }
     </style>
 
