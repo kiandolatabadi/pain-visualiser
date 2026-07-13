@@ -749,7 +749,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v17</div>
+<div id="app-version">v18</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -2054,6 +2054,22 @@ function disposeCompareScene(){
    its start and checks it's still current before applying anything. */
 let compareRequestId = 0;
 
+/* Forces WebKit to fully tear down and rebuild layout/compositing for
+   an element, not just recompute styles. Device-rotation testing on
+   iOS Safari showed that rotating — a "hard" viewport event — fixes a
+   stuck split-screen after exiting compare mode, while any amount of
+   JS-driven class/style changes and resize() calls did not. That
+   points at a stale GPU compositor layer for the WebGL canvas that
+   ordinary style recalculation doesn't invalidate on WebKit, but a
+   real layout teardown does. This reproduces that same kind of hard
+   teardown on demand, without needing an actual rotation. */
+function forceReflow(el){
+  const prevDisplay = el.style.display;
+  el.style.display = 'none';
+  void el.offsetHeight; /* forces a synchronous layout flush */
+  el.style.display = prevDisplay;
+}
+
 async function enterCompareMode(sA,sB){
   const myRequestId = ++compareRequestId;
   restoreSession(sA);
@@ -2067,6 +2083,7 @@ async function enterCompareMode(sA,sB){
   document.getElementById('cmp-label-b').textContent=sB.label+' · '+sB.date;
   document.getElementById('cards-panel').style.display='none';
   document.getElementById('paint-bar').style.display='none';
+  forceReflow(document.getElementById('map-panel'));
   /* Canvas B just went from display:none to a real flex size — resize
      synchronously rather than waiting for the ResizeObserver callback,
      so the very first compare-mode frame renders at the correct size.
@@ -2104,6 +2121,7 @@ function exitCompareMode(){
      the phone's collapsible pain-type panel stuck open. */
   document.body.classList.remove('cards-expanded');
   controls.enabled=true; isPainting=false;
+  forceReflow(document.getElementById('map-panel'));
   /* Canvas A just went from half-width back to full-width — resize
      synchronously (same reasoning as resizeB() on entry) rather than
      solely trusting the ResizeObserver callback, so the very first
