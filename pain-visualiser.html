@@ -734,7 +734,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v9</div>
+<div id="app-version">v10</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1205,7 +1205,14 @@ const tip     = document.getElementById('hover-tip');
 const ring    = document.getElementById('cursor-ring');
 
 /* ── Renderer ───────────────────────────────────────────────── */
-const renderer = new THREE.WebGLRenderer({ canvas:cvEl, antialias:true });
+/* antialias is off: MSAA + scissor-splitting one canvas into two regions
+   in a single frame (compare mode) is a known-fragile combination on
+   mobile tile-based GPUs specifically — the MSAA resolve step can end
+   up compositing only one region across the whole canvas instead of
+   respecting the scissor rect. Desktop GPUs mostly tolerate it, which is
+   why this only showed up on a real phone. High-DPI rendering (capped
+   2x pixel ratio above) already smooths edges substantially without it. */
+const renderer = new THREE.WebGLRenderer({ canvas:cvEl, antialias:false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setClearColor(0xededea, 1);
 
@@ -1795,7 +1802,6 @@ document.getElementById('clear-btn').addEventListener('click',()=>{
 /* ── Render loop ─────────────────────────────────────────────── */
 let compareActive = false;
 let compareSceneB = null;
-let compareDebugLogged = false;
 resize();
 (function animate(){
   requestAnimationFrame(animate);
@@ -1803,10 +1809,6 @@ resize();
   if(compareActive && compareSceneB){
     const el = renderer.domElement;
     const w = el.width, h = el.height, hw = Math.floor(w/2);
-    if(!compareDebugLogged){
-      compareDebugLogged=true;
-      logErr('COMPARE', `render branch: canvas=${w}x${h} hw=${hw} sceneA meshes=${scene.children.length} sceneB meshes=${compareSceneB.children.length}`);
-    }
     renderer.setScissorTest(true);
     renderer.setScissor(0, 0, hw, h);
     renderer.setViewport(0, 0, hw, h);
@@ -1958,27 +1960,21 @@ async function buildCompareScene(sess){
   addSceneLights(compareSceneB);
   const modelClone=modelData[sess.gender].scene.clone(true);
   modelClone.visible=true;
-  let meshCount=0;
   const promises=[];
   modelClone.traverse(child=>{
     if(!child.isMesh) return;
-    meshCount++;
     const mat=new THREE.MeshPhongMaterial({specular:0x221100,shininess:18,side:THREE.DoubleSide});
     child.material=mat;
     const url=sess.textures[child.userData.name||child.name];
     if(url) promises.push(loadImage(url).then(img=>{
-      if(!img){ return false; }
+      if(!img){ console.error('[PV] compare texture load failed/timed out for', child.userData.name||child.name); return; }
       const cv=document.createElement('canvas'); cv.width=cv.height=TEX_SIZE;
       cv.getContext('2d').drawImage(img,0,0);
       mat.map=new THREE.CanvasTexture(cv); mat.needsUpdate=true;
-      return true;
     }));
   });
   compareSceneB.add(modelClone);
-  const results = await Promise.all(promises);
-  const loaded = results.filter(Boolean).length;
-  logErr('COMPARE', `scene B: gender=${sess.gender} meshes=${meshCount} textures loaded=${loaded}/${promises.length}`);
-  return results;
+  return Promise.all(promises);
 }
 
 function disposeCompareScene(){
@@ -2001,13 +1997,10 @@ async function enterCompareMode(sA,sB){
   document.getElementById('cmp-label-b').textContent=sB.label+' · '+sB.date;
   document.getElementById('cards-panel').style.display='none';
   document.getElementById('paint-bar').style.display='none';
-  const el2 = renderer.domElement;
-  logErr('COMPARE', `entered: canvas=${el2.width}x${el2.height} dpr=${window.devicePixelRatio} compareSceneB children=${compareSceneB?compareSceneB.children.length:'null'}`);
 }
 
 function exitCompareMode(){
   compareActive=false;
-  compareDebugLogged=false;
   disposeCompareScene();
   document.getElementById('cmp-bar').classList.add('hidden');
   document.getElementById('cmp-divider').style.display='none';
