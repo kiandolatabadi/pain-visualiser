@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
   <title>Pain Visualiser</title>
   <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#1a4fa0">
+  <meta name="theme-color" content="#1a4fa0" id="theme-color-meta">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
@@ -23,6 +23,21 @@
       --text:#1a1a30;
       --subtext:#55558a;
       --map-accent:#666;
+    }
+
+    /* Dark theme: every rule in this stylesheet already reads from the
+       seven custom properties above, so redefining just these flips the
+       whole app — no per-component dark rules needed. --map-accent shifts
+       to a brighter violet so accent/focus elements stay visible against
+       the darker surfaces. */
+    :root[data-theme="dark"] {
+      --bg:#14141c;
+      --surface:#1e1e28;
+      --border:#33334a;
+      --dim:#7a7a9a;
+      --text:#eaeaf5;
+      --subtext:#a8a8d0;
+      --map-accent:#8a8aff;
     }
 
     html, body { height:100%; overflow:hidden; font-size:16px; }
@@ -71,6 +86,12 @@
       text-align:center; line-height:2.4;
     }
     #map-hint.hidden { opacity:0; }
+    .pv-spinner {
+      display:block; width:28px; height:28px; margin:0 auto 0.8rem;
+      border:3px solid var(--border); border-top-color:var(--map-accent,#666);
+      border-radius:50%; animation:pv-spin 0.8s linear infinite;
+    }
+    @keyframes pv-spin { to { transform:rotate(360deg); } }
 
     /* ── FLOATING CARDS PANEL ────────────────────────────────── */
     #cards-wrapper {
@@ -335,6 +356,170 @@
                       border-radius:50%; background:var(--dim); opacity:0.45; }
     #pt-btn.active::before { background:#3a7bd5; opacity:1; }
 
+    /* ── Settings button + panel ─────────────────────────────── */
+    #settings-wrap {
+      position:absolute; top:0.9rem; z-index:22;
+      /* `right` is set at runtime by positionSettingsWrap() to sit
+         flush against the gender toggle's left edge, in every layout */
+    }
+    #settings-btn {
+      width:32px; height:32px; padding:0; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      background:color-mix(in srgb, var(--surface) 92%, transparent);
+      border:1px solid var(--border);
+      color:var(--dim); cursor:pointer;
+      backdrop-filter:blur(8px); box-shadow:0 1px 4px rgba(0,0,0,0.07);
+      transition:all 0.15s;
+    }
+    #settings-btn svg { width:16px; height:16px; }
+    #settings-btn:hover { color:var(--text); border-color:#aaa; box-shadow:0 2px 8px rgba(0,0,0,0.11); }
+    #settings-btn.active {
+      color:var(--text); border-color:var(--dim);
+      background:color-mix(in srgb, var(--surface) 98%, transparent);
+    }
+    #settings-btn:focus-visible, .st-opt:focus-visible {
+      outline:2px solid var(--map-accent); outline-offset:2px;
+    }
+
+    #settings-panel {
+      position:absolute; top:calc(100% + 0.75rem); right:0; z-index:30;
+      width:230px;
+      background:color-mix(in srgb, var(--bg) 98%, transparent);
+      backdrop-filter:blur(12px);
+      border:1px solid var(--border); border-radius:16px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.06);
+      font-size:0.78rem;
+    }
+    #settings-panel.hidden { display:none; }
+
+    /* Segmented toggles (theme / language) — visual language matches
+       .gtog (pill container, adjacent buttons, solid-fill active option)
+       but scoped separately so it never collides with the page-level
+       gender toggle, using var(--bg) as the "on" text color so it
+       auto-inverts correctly in dark mode. */
+    .st-section { padding:0.65rem 0.9rem; }
+    .st-section + .st-section { border-top:1px solid var(--border); }
+    .st-label {
+      font-size:0.62rem; font-weight:700; letter-spacing:0.1em;
+      text-transform:uppercase; color:var(--dim); margin-bottom:0.4rem;
+    }
+    .st-toggle {
+      display:flex; border:1.5px solid var(--border); border-radius:20px;
+      overflow:hidden; background:var(--surface);
+    }
+    .st-opt {
+      flex:1; padding:0.38rem 0.6rem;
+      font-size:0.68rem; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;
+      border:none; background:transparent; cursor:pointer;
+      color:var(--dim); transition:background 0.18s, color 0.18s;
+    }
+    .st-opt + .st-opt { border-left:1.5px solid var(--border); }
+    .st-opt:hover:not(.on) { color:var(--subtext); }
+    .st-opt.on { background:var(--text); color:var(--bg); }
+
+    /* ── Intensity control (compact gauge → vertical-slider popover) ─ */
+    .int-compact {
+      position:relative;
+      display:flex; align-items:center; justify-content:center;
+      width:40px; height:24px; padding:0; overflow:hidden;
+      border:1.5px solid var(--border); border-radius:8px;
+      background:var(--surface);
+      cursor:pointer; -webkit-tap-highlight-color:transparent;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+    .int-compact:hover { border-color:var(--dim); }
+    .int-compact:focus-visible, .int-compact.open {
+      outline:none; border-color:var(--map-accent); box-shadow:0 0 0 3px rgba(0,0,0,0.08);
+    }
+    .int-btn-fill {
+      position:absolute; left:0; right:0; bottom:0;
+      height:50%; background:#59b36b; opacity:0.8;
+      transition:height 0.15s ease, background 0.15s ease;
+    }
+    .int-btn-val {
+      position:relative; z-index:1;
+      font-size:0.72rem; font-weight:800; color:var(--text);
+      text-shadow:0 1px 3px rgba(255,255,255,0.5);
+    }
+
+    .int-pop {
+      position:fixed; z-index:40; width:176px;
+      background:color-mix(in srgb, var(--bg) 98%, transparent);
+      backdrop-filter:blur(12px);
+      border:1px solid var(--border); border-radius:16px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.06);
+      font-size:0.78rem;
+    }
+    .int-pop.hidden { display:none; }
+    .int-pop-head {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0.65rem 0.9rem 0.55rem;
+      border-bottom:1px solid var(--border);
+    }
+    .int-pop-titletext {
+      font-weight:700; font-size:0.66rem; letter-spacing:0.12em;
+      text-transform:uppercase; color:var(--dim);
+    }
+    .int-pop-x {
+      background:none; border:none; cursor:pointer; font-size:1rem;
+      color:var(--dim); padding:0 0.15rem; line-height:1; border-radius:50%;
+      width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+    }
+    .int-pop-x:hover { color:var(--text); background:var(--surface); }
+
+    .int-pop-body {
+      display:flex; flex-direction:column; align-items:center;
+      padding:0.9rem 0 1.1rem;
+    }
+    .int-val-big {
+      font-size:2.1rem; font-weight:800; line-height:1;
+      color:var(--text); margin-bottom:0.7rem;
+      font-variant-numeric:tabular-nums;
+    }
+    .int-vtrack-wrap { display:flex; flex-direction:column; align-items:center; gap:0.35rem; }
+    .int-tick { font-size:0.62rem; font-weight:700; color:var(--dim); letter-spacing:0.04em; }
+    .int-vtrack {
+      position:relative; width:52px; height:216px; border-radius:26px;
+      border:1.5px solid var(--border);
+      cursor:pointer; touch-action:none;
+      background:
+        repeating-linear-gradient(to top,
+          transparent 0, transparent calc(11.111% - 1px),
+          rgba(255,255,255,0.28) calc(11.111% - 1px), rgba(255,255,255,0.28) 11.111%),
+        linear-gradient(to top, #4c9d61 0%, #d9a13a 50%, #d1443a 100%);
+      box-shadow:inset 0 1px 4px rgba(0,0,0,0.18);
+    }
+    .int-vmask {
+      position:absolute; top:0; left:0; right:0; height:55%;
+      background:color-mix(in srgb, var(--bg) 82%, transparent);
+      border-radius:26px 26px 0 0;
+      transition:height 0.12s ease; pointer-events:none;
+    }
+    .int-vthumb {
+      position:absolute; left:50%; bottom:45%;
+      width:28px; height:28px; transform:translate(-50%, 50%);
+      background:var(--surface); border:2.5px solid var(--text); border-radius:50%;
+      box-shadow:0 2px 6px rgba(0,0,0,0.25);
+      transition:bottom 0.12s ease; pointer-events:none;
+    }
+    .int-vtrack:active .int-vthumb, .int-vtrack.dragging .int-vthumb {
+      transition:none; box-shadow:0 3px 10px rgba(0,0,0,0.32);
+    }
+    .int-vtrack:focus-visible {
+      outline:none; box-shadow:inset 0 1px 4px rgba(0,0,0,0.18), 0 0 0 3px rgba(138,138,255,0.35);
+    }
+    .int-scale-lbl {
+      width:52px; margin-top:0.5rem;
+      display:flex; justify-content:space-between;
+      font-size:0.58rem; font-weight:600; letter-spacing:0.06em;
+      text-transform:uppercase; color:var(--dim);
+    }
+    @media (max-width:480px) {
+      .int-pop { width:188px; }
+      .int-vtrack { width:58px; height:232px; }
+      .int-vthumb { width:32px; height:32px; }
+    }
+
     /* ── Patient panel ──────────────────────────────────────── */
     #pt-panel {
       position:absolute; left:0.9rem; top:3rem; z-index:30;
@@ -597,6 +782,16 @@
         top:calc(0.9rem + env(safe-area-inset-top,0px));
       }
       .gtog { padding:0.4rem 0.75rem; font-size:0.62rem; }
+
+      /* Horizontal position is handled by positionSettingsWrap() (it
+         reads #gender-tog's live position, which already accounts for
+         the phone-specific offset above) — only the vertical safe-area
+         offset and the panel's small-screen sizing need overriding here. */
+      #settings-wrap { top:calc(0.9rem + env(safe-area-inset-top,0px)); }
+      #settings-panel {
+        width:230px; max-width:calc(100vw - 1.2rem);
+        max-height:calc(100vh - 4rem); overflow-y:auto;
+      }
     }
     </style>
 
@@ -617,19 +812,60 @@
   <div id="map-panel">
     <canvas id="three-canvas"></canvas>
     <canvas id="three-canvas-b"></canvas>
-    <button id="pt-btn">Patients</button>
+    <button id="pt-btn" data-i18n="patients">Patients</button>
     <div id="gender-tog">
-      <button class="gtog on" data-g="male">&#9794; Male</button>
-      <button class="gtog" data-g="female">&#9792; Female</button>
+      <button class="gtog on" data-g="male" data-i18n="genderMale">&#9794; Male</button>
+      <button class="gtog" data-g="female" data-i18n="genderFemale">&#9792; Female</button>
+    </div>
+
+    <!-- Settings: theme + language -->
+    <div id="settings-wrap">
+      <button id="settings-btn" aria-label="Settings" aria-haspopup="true" aria-expanded="false" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33
+                   1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4
+                   a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82
+                   1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9
+                   a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9
+                   a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51
+                   1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9
+                   a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+
+      <div id="settings-panel" class="hidden">
+        <div class="pp-head">
+          <span class="pp-title" data-i18n="settingsTitle">Settings</span>
+          <button class="pp-x" id="settings-close" aria-label="Close settings">&#xd7;</button>
+        </div>
+
+        <div class="st-section">
+          <div class="st-label" data-i18n="settingsTheme">Theme</div>
+          <div class="st-toggle" id="theme-toggle">
+            <button class="st-opt on" data-theme-choice="light" data-i18n="settingsLight">Light</button>
+            <button class="st-opt" data-theme-choice="dark" data-i18n="settingsDark">Dark</button>
+          </div>
+        </div>
+
+        <div class="st-section">
+          <div class="st-label" data-i18n="settingsLanguage">Language</div>
+          <div class="st-toggle" id="lang-toggle">
+            <button class="st-opt on" data-lang-choice="en">English</button>
+            <button class="st-opt" data-lang-choice="fr">Français</button>
+          </div>
+        </div>
+      </div>
     </div>
     <div id="map-hint">← Select a pain type on the right<br>then paint it on the body</div>
 
     <!-- Compare bar -->
     <div id="cmp-bar" class="hidden">
       <span id="cmp-label-a"></span>
-      <span class="cmp-vs">vs</span>
+      <span class="cmp-vs" data-i18n="cmpVs">vs</span>
       <span id="cmp-label-b"></span>
-      <button id="cmp-exit">Exit compare</button>
+      <button id="cmp-exit" data-i18n="cmpExit">Exit compare</button>
     </div>
     <div id="cmp-divider"></div>
 
@@ -639,16 +875,16 @@
       <!-- VIEW A: patient list -->
       <div id="pp-view-list">
         <div class="pp-head">
-          <span class="pp-title">Patients</span>
+          <span class="pp-title" data-i18n="patients">Patients</span>
           <button class="pp-x" id="pp-close">&#xd7;</button>
         </div>
         <div class="pp-new">
-          <input id="pp-name-in" type="text" placeholder="Name or ID&#x2026;" maxlength="60">
-          <button id="pp-create">+ New</button>
+          <input id="pp-name-in" type="text" placeholder="Name or ID&#x2026;" data-i18n-placeholder="ptNamePlaceholder" maxlength="60">
+          <button id="pp-create" data-i18n="ptNew">+ New</button>
         </div>
         <div class="pp-new">
-          <button id="pp-export" style="flex:1">Export backup</button>
-          <button id="pp-import" style="flex:1">Import backup</button>
+          <button id="pp-export" style="flex:1" data-i18n="exportBackup">Export backup</button>
+          <button id="pp-import" style="flex:1" data-i18n="importBackup">Import backup</button>
           <input id="pp-import-file" type="file" accept="application/json" style="display:none">
         </div>
         <div id="pp-list"></div>
@@ -664,12 +900,12 @@
         <div id="pp-sessions">
           <div id="pp-sess-list"></div>
           <div class="pp-save-row">
-            <input id="pp-sess-label" type="text" placeholder="Label (default: today)">
-            <button id="pp-save-sess">Save</button>
+            <input id="pp-sess-label" type="text" placeholder="Label (default: today)" data-i18n-placeholder="sessLabelPlaceholder">
+            <button id="pp-save-sess" data-i18n="save">Save</button>
           </div>
           <div class="pp-cmp-row">
             <select id="cmp-sel-a"><option value="">Session A</option></select>
-            <span class="pp-cmp-vs">vs</span>
+            <span class="pp-cmp-vs" data-i18n="cmpVs">vs</span>
             <select id="cmp-sel-b"><option value="">Session B</option></select>
             <button id="pp-cmp-go">&#x2192;</button>
           </div>
@@ -682,28 +918,28 @@
   <!-- Floating cards panel -->
   <div id="cards-wrapper">
     <button id="cards-toggle" type="button">
-      <span id="cards-toggle-label">Change pain type</span>
+      <span id="cards-toggle-label" data-i18n="changePainType">Change pain type</span>
       <span id="cards-toggle-icon">&#9662;</span>
     </button>
     <div id="cards-panel">
       <header>
-        <h1>Pain Visualiser</h1>
-        <p>Find the animation that best matches your pain — then paint where you feel it on the body.</p>
+        <h1 data-i18n="appTitle">Pain Visualiser</h1>
+        <p data-i18n="appSubtitle">Find the animation that best matches your pain — then paint where you feel it on the body.</p>
       </header>
       <section class="section">
-        <div class="sh"><span class="st">Rhythmic</span><span class="sd">Cyclic — hold to change rate</span></div>
+        <div class="sh"><span class="st" data-i18n="sectionRhythmic">Rhythmic</span><span class="sd" data-i18n="sectionRhythmicSub">Cyclic — hold to change rate</span></div>
         <div class="grid" id="ga"></div>
       </section>
       <section class="section">
-        <div class="sh"><span class="st">Continuous</span><span class="sd">Always present</span></div>
+        <div class="sh"><span class="st" data-i18n="sectionContinuous">Continuous</span><span class="sd" data-i18n="sectionContinuousSub">Always present</span></div>
         <div class="grid" id="gb"></div>
       </section>
       <section class="section">
-        <div class="sh"><span class="st">Intermittent</span><span class="sd">Sudden — tap to trigger</span></div>
+        <div class="sh"><span class="st" data-i18n="sectionIntermittent">Intermittent</span><span class="sd" data-i18n="sectionIntermittentSub">Sudden — tap to trigger</span></div>
         <div class="grid" id="gc"></div>
       </section>
       <section class="section">
-        <div class="sh"><span class="st">Sensory</span><span class="sd">Abnormal sensations</span></div>
+        <div class="sh"><span class="st" data-i18n="sectionSensory">Sensory</span><span class="sd" data-i18n="sectionSensorySub">Abnormal sensations</span></div>
         <div class="grid" id="gd"></div>
       </section>
     </div>
@@ -720,28 +956,66 @@
       <div class="bar-sep"></div>
 
       <div id="depth-bar">
-        <button class="dep on" data-d="skin"><span class="dico"></span>Skin</button>
-        <button class="dep" data-d="sub"><span class="dico"></span>Sub-Q</button>
-        <button class="dep" data-d="muscular"><span class="dico"></span>Muscle</button>
-        <button class="dep" data-d="visceral"><span class="dico"></span>Visceral</button>
-        <button class="dep dep-eraser" data-d="eraser"><span class="dico"></span>Eraser</button>
+        <button class="dep on" data-d="skin"><span class="dico"></span><span data-i18n="depthSkin">Skin</span></button>
+        <button class="dep" data-d="sub"><span class="dico"></span><span data-i18n="depthSubQ">Sub-Q</span></button>
+        <button class="dep" data-d="muscular"><span class="dico"></span><span data-i18n="depthMuscle">Muscle</span></button>
+        <button class="dep" data-d="visceral"><span class="dico"></span><span data-i18n="depthVisceral">Visceral</span></button>
+        <button class="dep dep-eraser" data-d="eraser"><span class="dico"></span><span data-i18n="depthEraser">Eraser</span></button>
       </div>
 
       <div class="bar-sep"></div>
 
       <div class="ctrl-grp">
-        <span class="ctrl-lbl">Brush</span>
+        <span class="ctrl-lbl" data-i18n="brush">Brush</span>
         <input type="range" class="pslider" id="brush-sz" min="1" max="20" value="5">
         <span class="ctrl-val" id="brush-val">5</span>
       </div>
 
       <div class="ctrl-grp">
-        <span class="ctrl-lbl">Intensity</span>
-        <input type="range" class="pslider" id="intensity-sl" min="1" max="10" value="5">
-        <span class="ctrl-val" id="int-val">5</span>
+        <span class="ctrl-lbl" data-i18n="intensity">Intensity</span>
+        <button type="button"
+                id="int-btn"
+                class="int-compact"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="int-pop">
+          <span id="int-btn-fill" class="int-btn-fill"></span>
+          <span id="int-val" class="int-btn-val">5</span>
+        </button>
       </div>
 
-      <button id="clear-btn">Clear</button>
+      <button id="clear-btn" data-i18n="clear">Clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Intensity popover — sibling of #paint-bar, outside #paint-scroll's scroll clipping -->
+<div id="int-pop" class="int-pop hidden" role="dialog" aria-label="Pain intensity" aria-modal="false">
+  <div class="int-pop-head">
+    <span class="int-pop-titletext" data-i18n="intensity">Intensity</span>
+    <button type="button" class="int-pop-x" id="int-pop-close" aria-label="Close">&#xd7;</button>
+  </div>
+  <div class="int-pop-body">
+    <div id="int-val-big" class="int-val-big">5</div>
+    <div class="int-vtrack-wrap">
+      <span class="int-tick">10</span>
+      <div id="int-vtrack"
+           class="int-vtrack"
+           role="slider"
+           tabindex="0"
+           aria-orientation="vertical"
+           aria-valuemin="1"
+           aria-valuemax="10"
+           aria-valuenow="5"
+           aria-valuetext="5 out of 10"
+           aria-label="Pain intensity">
+        <div id="int-vmask" class="int-vmask"></div>
+        <div id="int-vthumb" class="int-vthumb"></div>
+      </div>
+      <span class="int-tick">1</span>
+    </div>
+    <div class="int-scale-lbl">
+      <span data-i18n="intensityMild">Mild</span><span data-i18n="intensitySevere">Severe</span>
     </div>
   </div>
 </div>
@@ -749,7 +1023,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v18</div>
+<div id="app-version">v19</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -859,16 +1133,43 @@ class DullConstant extends RhyFX {
 }
 
 class Angor extends RhyFX {
-  constructor(cv){ super(cv,28); this.rings=[]; this.doom=0; const W=cv.width,H=cv.height,maxR=Math.sqrt(W*W+H*H)*0.72; for(let i=0;i<4;i++) this.rings.push({r:maxR-i*W*0.16,life:0.5+i*0.12}); }
-  onBeat(){ const maxR=Math.sqrt(this.W*this.W+this.H*this.H)*0.72; if(this.rings.length<14) this.rings.push({r:maxR,life:1}); this.doom=Math.min(this.doom+0.2,1); }
+  constructor(cv){
+    super(cv,28); this.rings=[]; this.doom=0;
+    const W=cv.width,H=cv.height,maxR=Math.sqrt(W*W+H*H)*0.72;
+    for(let i=0;i<4;i++) this.rings.push({r:maxR-i*W*0.16,life:0.5+i*0.12});
+  }
+  onBeat(){
+    const maxR=Math.sqrt(this.W*this.W+this.H*this.H)*0.72;
+    if(this.rings.length<14) this.rings.push({r:maxR,life:1});
+    this.doom=Math.min(this.doom+0.22,1);
+  }
   tick(){
     super.tick(); const {ctx,W,H}=this,d=this.doom;
-    ctx.fillStyle=`hsl(0,${8+d*20}%,${2+d*3}%)`; ctx.fillRect(0,0,W,H); this.doom*=0.9975;
+    ctx.fillStyle=`hsl(14,${44+d*28}%,${15+d*7}%)`; ctx.fillRect(0,0,W,H);
+    this.doom*=0.9965;
     const cx=W/2,cy=H/2,sq=Math.max(0,1-(this.t-this.lastBeat)/28);
-    ctx.save(); ctx.globalAlpha=0.10+d*0.24+sq*0.22; ctx.fillStyle=`hsl(${12-d*8},${55+d*35}%,${14+sq*14}%)`; ctx.beginPath(); ctx.arc(cx,cy,10+sq*18,0,TAU); ctx.fill();
+    const grip=Math.min(1,sq*1.25+(this.down?0.5:0));
+
+    ctx.save(); ctx.lineCap='round';
+    const jawGap=52-grip*26; /* jaws slide inward as grip intensifies */
+    for(const side of [-1,1]){
+      const start=side<0?Math.PI*0.66:-Math.PI*0.34, end=side<0?Math.PI*1.34:Math.PI*0.34;
+      ctx.globalAlpha=0.55+grip*0.4; ctx.strokeStyle=`hsl(${28+d*8},95%,${52+grip*14}%)`; ctx.lineWidth=9+grip*7;
+      ctx.beginPath(); ctx.arc(cx+side*jawGap,cy,46,start,end); ctx.stroke();
+    }
+
+    ctx.globalAlpha=0.5+d*0.3+sq*0.2; ctx.fillStyle=`hsl(${20-d*6},90%,${46+sq*18}%)`;
+    ctx.beginPath(); ctx.arc(cx,cy,14+sq*16,0,TAU); ctx.fill();
+
     this.rings=this.rings.filter(r=>r.r>0&&r.life>0.01);
-    for(const r of this.rings){ r.r-=2.6+(this.bpm-28)*0.07; r.life-=0.007; const frac=Math.max(r.r/(Math.sqrt(W*W+H*H)*0.72),0); ctx.globalAlpha=r.life*(0.16+frac*0.42+d*0.14); ctx.strokeStyle=`hsl(${frac*10},${48+d*32}%,${13+frac*18}%)`; ctx.lineWidth=3.5*r.life*(1.1-frac*0.22); ctx.beginPath(); ctx.arc(cx,cy,Math.max(r.r,0.1),0,TAU); ctx.stroke(); }
-    if(this.down){ this.doom=Math.min(this.doom+0.014,1); ctx.globalAlpha=0.10+d*0.14; ctx.fillStyle='#150002'; ctx.fillRect(0,0,W,H); }
+    for(const r of this.rings){
+      r.r-=2.8+(this.bpm-28)*0.08; r.life-=0.007;
+      const frac=Math.max(r.r/(Math.sqrt(W*W+H*H)*0.72),0);
+      ctx.globalAlpha=r.life*(0.35+frac*0.4+d*0.15);
+      ctx.strokeStyle=`hsl(${10+frac*20},88%,${40+frac*22}%)`; ctx.lineWidth=3.5*r.life*(1.1-frac*0.22);
+      ctx.beginPath(); ctx.arc(cx,cy,Math.max(r.r,0.1),0,TAU); ctx.stroke();
+    }
+    if(this.down) this.doom=Math.min(this.doom+0.016,1);
     ctx.restore();
   }
 }
@@ -906,19 +1207,60 @@ class Cold extends FX {
 }
 
 class Aching extends FX {
-  constructor(cv){ super(cv); const W=cv.width,H=cv.height; this.blobs=Array.from({length:7},()=>({x:R(W*0.12,W*0.88),y:R(H*0.12,H*0.88),vx:R(-0.07,0.07),vy:R(-0.07,0.07),r:R(38,62),phase:R(0,TAU)})); }
+  constructor(cv){
+    super(cv);
+    const W=cv.width,H=cv.height;
+    this.blobs=Array.from({length:6},()=>({
+      x:R(W*0.15,W*0.85),y:R(H*0.15,H*0.85),
+      vx:R(-0.09,0.09),vy:R(-0.09,0.09),
+      r:R(42,68),phase:R(0,TAU),h:R(-8,14)
+    }));
+  }
   tick(){
-    super.tick(); const {ctx,W,H,t}=this; ctx.fillStyle='#090205'; ctx.fillRect(0,0,W,H); ctx.save(); ctx.globalAlpha=0.19; ctx.fillStyle='#350710'; ctx.fillRect(0,0,W,H);
-    for(const b of this.blobs){ b.x+=b.vx; b.y+=b.vy; if(b.x<18||b.x>W-18) b.vx*=-1; if(b.y<18||b.y>H-18) b.vy*=-1; const pulse=(Math.sin(t*0.004+b.phase)+1)*0.5; ctx.globalAlpha=0.07+pulse*0.06; ctx.fillStyle='#5c1018'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r*(1+pulse*0.1),0,TAU); ctx.fill(); }
-    if(this.ptr){ ctx.globalAlpha=0.16; ctx.fillStyle='#7a1422'; ctx.beginPath(); ctx.arc(this.ptr.x,this.ptr.y,46,0,TAU); ctx.fill(); }
+    super.tick(); const {ctx,W,H,t}=this;
+    this.bg('#2a0d16'); /* warm, legible maroon base instead of near-black */
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    for(const b of this.blobs){
+      b.x+=b.vx; b.y+=b.vy;
+      if(b.x<22||b.x>W-22) b.vx*=-1; if(b.y<22||b.y>H-22) b.vy*=-1;
+      const pulse=(Math.sin(t*0.0055+b.phase)+1)*0.5, rad=b.r*(1+pulse*0.16);
+      const g=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,rad);
+      g.addColorStop(0,`hsla(${350+b.h},85%,${46+pulse*16}%,${0.34+pulse*0.24})`);
+      g.addColorStop(1,'hsla(350,85%,40%,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(b.x,b.y,rad,0,TAU); ctx.fill();
+    }
+    if(this.ptr){
+      const g=ctx.createRadialGradient(this.ptr.x,this.ptr.y,0,this.ptr.x,this.ptr.y,52);
+      g.addColorStop(0,'hsla(355,90%,60%,0.4)'); g.addColorStop(1,'hsla(355,90%,60%,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.ptr.x,this.ptr.y,52,0,TAU); ctx.fill();
+    }
     ctx.restore();
   }
 }
 
 class Heavy extends FX {
   tick(){
-    super.tick(); const {ctx,W,H,t}=this; this.bg('#060810'); const n=12; ctx.save(); ctx.lineCap='round';
-    for(let i=0;i<n;i++){ const baseY=(i+0.5)/n*H,w=i/n,maxSag=H*0.038*w+H*0.004; ctx.globalAlpha=0.20+w*0.16; ctx.strokeStyle=`hsl(210,${18+i*1.2}%,${11+i*1.6}%)`; ctx.lineWidth=0.9+w*0.9; ctx.beginPath(); for(let x=0;x<=W;x+=4){ const arch=Math.sin((x/W)*Math.PI)*maxSag,wave=Math.sin(x*0.022+t*0.004+i*0.35)*1.6*w; let y=baseY+arch+wave; if(this.ptr){ const dx=x-this.ptr.x; y+=Math.exp(-dx*dx/(2*52*52))*9*(this.ptr.y/H+0.4)*w; } x===0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); }
+    super.tick(); const {ctx,W,H,t}=this;
+    this.bg('hsl(214,28%,15%)'); /* lighter steel-navy base */
+    const n=9; ctx.save(); ctx.lineCap='round';
+    for(let i=0;i<n;i++){
+      const w=(i+1)/n, baseY=(i+0.5)/n*H, maxSag=H*0.09*w+H*0.01;
+      ctx.globalAlpha=0.42+w*0.4;
+      ctx.strokeStyle=`hsl(208,${55+w*15}%,${38+w*30}%)`;
+      ctx.lineWidth=2+w*3.6;
+      ctx.beginPath();
+      for(let x=0;x<=W;x+=4){
+        const arch=Math.sin((x/W)*Math.PI)*maxSag;
+        const wave=Math.sin(x*0.02+t*0.003+i*0.4)*2.2*w;
+        let y=baseY+arch+wave;
+        if(this.ptr){
+          const dx=x-this.ptr.x;
+          y+=Math.exp(-dx*dx/(2*55*55))*(14+w*10)*(this.down?1.8:1);
+        }
+        x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
     ctx.restore();
   }
 }
@@ -1073,6 +1415,147 @@ class Anesthesia extends FX {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   i18n — English/French dictionary + apply-translations
+   Attached to `window` (not `let`/`const` at this script's top level,
+   which would stay private to this classic script) so the module
+   script's settings-panel language toggle can read/write the same
+   state. Deliberately DOM-attribute-driven (data-i18n, data-type-id,
+   data-i18n-state) rather than reaching into other scripts' private
+   variables — applyTranslations() only ever touches the DOM, so it
+   works identically regardless of which script last set something.
+   ══════════════════════════════════════════════════════════════════ */
+window.currentLanguage = 'en';
+
+window.I18N = {
+  en: {
+    appTitle: 'Pain Visualiser',
+    appSubtitle: 'Find the animation that best matches your pain — then paint where you feel it on the body.',
+    sectionRhythmic: 'Rhythmic', sectionRhythmicSub: 'Cyclic — hold to change rate',
+    sectionContinuous: 'Continuous', sectionContinuousSub: 'Always present',
+    sectionIntermittent: 'Intermittent', sectionIntermittentSub: 'Sudden — tap to trigger',
+    sectionSensory: 'Sensory', sectionSensorySub: 'Abnormal sensations',
+    changePainType: 'Change pain type',
+    mapHintLoading: 'Loading models…',
+    mapHintDefault: '← Select a pain type on the right<br>then paint it on the body',
+    depthSkin: 'Skin', depthSubQ: 'Sub-Q', depthMuscle: 'Muscle', depthVisceral: 'Visceral', depthEraser: 'Eraser',
+    brush: 'Brush', intensity: 'Intensity', clear: 'Clear',
+    intensityMild: 'Mild', intensitySevere: 'Severe',
+    genderMale: '♂ Male', genderFemale: '♀ Female',
+    patients: 'Patients',
+    ptNamePlaceholder: 'Name or ID…', ptNew: '+ New',
+    exportBackup: 'Export backup', importBackup: 'Import backup',
+    sessLabelPlaceholder: 'Label (default: today)', save: 'Save', load: 'Load',
+    sessionPlaceholder: '— session —',
+    selectTwoSessions: 'Select two different sessions.',
+    cmpVs: 'vs', cmpExit: 'Exit compare',
+    settingsTitle: 'Settings', settingsTheme: 'Theme', settingsLight: 'Light', settingsDark: 'Dark', settingsLanguage: 'Language',
+    cardSelect: 'Select', cardActive: '● Active',
+    storageFullError: 'Could not save — this device may be out of storage space.\n\nTry "Export backup" to save your data to a file, then delete some old sessions to free up space.\n\n({error})',
+    confirmDeletePatient: 'Delete this patient and all their sessions?',
+    compareViewError: 'Could not open the comparison view. Try again — if this keeps happening, try one session at a time.',
+    backupReadError: 'Could not read this backup file.\n\n({error})',
+    confirmImport: 'Import "{file}"?\n\nThis REPLACES all patient data currently stored in this browser ({count} patient(s) in the file). This cannot be undone — export a backup first if unsure.',
+    backupImported: 'Backup imported.',
+    painTypes: {
+      throbbing:'Throbbing', cramping:'Cramping', dull:'Dull & Constant', angor:'Angor / Angina',
+      burning:'Burning', cold:'Cold / Freezing', aching:'Aching', heavy:'Heavy',
+      stabbing:'Stabbing', electric:'Electric Shock', sharp:'Sharp / Piercing', shooting:'Shooting', poignard:'Coup de Poignard',
+      tingling:'Tingling', numbness:'Numbness', itching:'Itching', allodynia:'Allodynia', hypo:'Hypoesthesia', anesthesia:'Anesthesia',
+    },
+  },
+  fr: {
+    appTitle: 'Visualiseur de Douleur',
+    appSubtitle: "Trouvez l'animation qui correspond le mieux à votre douleur, puis peignez-la sur le corps.",
+    sectionRhythmic: 'Rythmique', sectionRhythmicSub: 'Cyclique — maintenez pour changer le rythme',
+    sectionContinuous: 'Continue', sectionContinuousSub: 'Toujours présente',
+    sectionIntermittent: 'Intermittente', sectionIntermittentSub: 'Soudaine — touchez pour déclencher',
+    sectionSensory: 'Sensorielle', sectionSensorySub: 'Sensations anormales',
+    changePainType: 'Changer de type de douleur',
+    mapHintLoading: 'Chargement des modèles…',
+    mapHintDefault: '← Sélectionnez un type de douleur à droite<br>puis peignez-le sur le corps',
+    depthSkin: 'Peau', depthSubQ: 'Sous-cut.', depthMuscle: 'Muscle', depthVisceral: 'Viscérale', depthEraser: 'Gomme',
+    brush: 'Pinceau', intensity: 'Intensité', clear: 'Effacer',
+    intensityMild: 'Légère', intensitySevere: 'Sévère',
+    genderMale: '♂ Homme', genderFemale: '♀ Femme',
+    patients: 'Patients',
+    ptNamePlaceholder: 'Nom ou ID…', ptNew: '+ Nouveau',
+    exportBackup: 'Exporter la sauvegarde', importBackup: 'Importer une sauvegarde',
+    sessLabelPlaceholder: "Libellé (par défaut : aujourd'hui)", save: 'Enregistrer', load: 'Charger',
+    sessionPlaceholder: '— séance —',
+    selectTwoSessions: 'Sélectionnez deux séances différentes.',
+    cmpVs: 'vs', cmpExit: 'Quitter la comparaison',
+    settingsTitle: 'Paramètres', settingsTheme: 'Thème', settingsLight: 'Clair', settingsDark: 'Sombre', settingsLanguage: 'Langue',
+    cardSelect: 'Sélectionner', cardActive: '● Actif',
+    storageFullError: "Impossible d'enregistrer — cet appareil manque peut-être d'espace de stockage.\n\nEssayez « Exporter la sauvegarde » pour enregistrer vos données dans un fichier, puis supprimez d'anciennes séances pour libérer de l'espace.\n\n({error})",
+    confirmDeletePatient: 'Supprimer ce patient et toutes ses séances ?',
+    compareViewError: 'Impossible d’ouvrir la vue comparative. Réessayez — si le problème persiste, essayez une séance à la fois.',
+    backupReadError: 'Impossible de lire ce fichier de sauvegarde.\n\n({error})',
+    confirmImport: 'Importer « {file} » ?\n\nCela REMPLACE toutes les données patients actuellement stockées dans ce navigateur ({count} patient(s) dans le fichier). Cette action est irréversible — exportez une sauvegarde au préalable si vous n’êtes pas sûr.',
+    backupImported: 'Sauvegarde importée.',
+    painTypes: {
+      throbbing:'Lancinante', cramping:'Crampe', dull:'Sourde et constante', angor:'Angor',
+      burning:'Brûlure', cold:'Froid / Glacial', aching:'Endolorie', heavy:'Lourdeur',
+      stabbing:'Poignardante', electric:'Décharge électrique', sharp:'Aiguë / Perçante', shooting:'Fulgurante', poignard:'Coup de Poignard',
+      tingling:'Fourmillements', numbness:'Engourdissement', itching:'Démangeaison', allodynia:'Allodynie', hypo:'Hypoesthésie', anesthesia:'Anesthésie',
+    },
+  },
+};
+
+window.applyTranslations = function applyTranslations(){
+  const dict = window.I18N[window.currentLanguage];
+  document.documentElement.lang = window.currentLanguage;
+
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const val = el.dataset.i18n.split('.').reduce((o,k)=>o?.[k], dict);
+    if(val!=null) el.textContent = val;
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>{
+    const val = el.dataset.i18nHtml.split('.').reduce((o,k)=>o?.[k], dict);
+    if(val!=null) el.innerHTML = val;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const val = el.dataset.i18nPlaceholder.split('.').reduce((o,k)=>o?.[k], dict);
+    if(val!=null) el.placeholder = val;
+  });
+
+  /* Pain-type card labels — tagged with data-type-id at creation time
+     (see the card-building loop below) rather than re-keying off the
+     English text, so this works regardless of which language was
+     active when the card was first built. */
+  document.querySelectorAll('.lbl[data-type-id]').forEach(el=>{
+    const val = dict.painTypes[el.dataset.typeId];
+    if(val) el.textContent = val;
+  });
+  /* Card "Select"/"● Active" buttons — built dynamically per card, state
+     (not just language) determines which string applies. */
+  document.querySelectorAll('.sel').forEach(b=>{
+    b.textContent = b.classList.contains('on') ? dict.cardActive : dict.cardSelect;
+  });
+  /* The paint bar's active-type display, if a type is currently
+     selected (tagged the same way by the painselect handler). */
+  const typeNameEl = document.getElementById('type-name');
+  if(typeNameEl?.dataset.typeId){
+    const val = dict.painTypes[typeNameEl.dataset.typeId];
+    if(val) typeNameEl.textContent = val;
+  }
+  /* #map-hint's content depends on load state (spinner+"Loading…" vs
+     the default instructional text) rather than being static, so it's
+     tagged with which one is currently showing instead of data-i18n. */
+  const hintEl = document.getElementById('map-hint');
+  if(hintEl?.dataset.i18nState === 'loading'){
+    hintEl.innerHTML = '<div class="pv-spinner"></div>' + dict.mapHintLoading;
+  } else if(hintEl?.dataset.i18nState === 'default'){
+    hintEl.innerHTML = dict.mapHintDefault;
+  }
+
+  /* Session list/dropdowns are built from JS template literals (not
+     static data-i18n markup), so if the patient detail view happens to
+     be open when the language changes, re-render it to pick up the
+     "Load"/"— session —" strings in the new language. */
+  if(window.refreshPatientPanelLanguage) window.refreshPatientPanelLanguage();
+};
+
 /* ── REGISTRY ─────────────────────────────────────────────── */
 const REG = {
   ga:[
@@ -1109,7 +1592,7 @@ const allFx = [];
 
 function clearSelection(){
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('faded','selected'));
-  document.querySelectorAll('.sel.on').forEach(b=>{ b.classList.remove('on'); b.textContent='Select'; });
+  document.querySelectorAll('.sel.on').forEach(b=>{ b.classList.remove('on'); b.textContent=window.I18N[window.currentLanguage].cardSelect; });
   document.body.classList.remove('has-selection','cards-expanded');
   document.dispatchEvent(new CustomEvent('paindeselect'));
 }
@@ -1132,14 +1615,15 @@ for(const [gridId, types] of Object.entries(REG)){
     const canvas = document.createElement('canvas'); canvas.width=canvas.height=200;
     wrap.appendChild(canvas);
 
-    const lbl = document.createElement('div'); lbl.className='lbl'; lbl.textContent=type.label;
+    const lbl = document.createElement('div'); lbl.className='lbl'; lbl.dataset.typeId=type.id;
+    lbl.textContent = window.I18N[window.currentLanguage].painTypes[type.id] || type.label;
 
-    const sel = document.createElement('button'); sel.className='sel'; sel.textContent='Select';
+    const sel = document.createElement('button'); sel.className='sel'; sel.textContent=window.I18N[window.currentLanguage].cardSelect;
     sel.addEventListener('click', ()=>{
       const wasOn = sel.classList.contains('on');
       clearSelection();
       if(!wasOn){
-        sel.classList.add('on'); sel.textContent='● Active';
+        sel.classList.add('on'); sel.textContent=window.I18N[window.currentLanguage].cardActive;
         card.classList.add('selected');
         document.querySelectorAll('.card').forEach(c=>{ if(c!==card) c.classList.add('faded'); });
         document.body.classList.add('has-selection');
@@ -1455,13 +1939,16 @@ function switchGender(gender){
 /* Load both models in parallel */
 const loader = new GLTFLoader();
 let loadedCount = 0;
-hint.innerHTML = 'Loading models…';
+hint.dataset.i18nState = 'loading';
+hint.innerHTML = '<div class="pv-spinner"></div>' + window.I18N[window.currentLanguage].mapHintLoading;
 for(const [gender, entry] of Object.entries(modelData)){
   loader.load(entry.file, gltf => {
     try{
       setupModel(gltf, gender);
-      if(++loadedCount === 2)
-        hint.innerHTML = '← Select a pain type on the right<br>then paint it on the body';
+      if(++loadedCount === 2){
+        hint.dataset.i18nState = 'default';
+        hint.innerHTML = window.I18N[window.currentLanguage].mapHintDefault;
+      }
     } catch(e){ console.error('[PV] Setup error:', gender, e); }
   }, undefined, err => { if(err) console.error('[PV] Load error:', gender, err); });
 }
@@ -1474,6 +1961,87 @@ document.querySelectorAll('.gtog').forEach(btn => {
     switchGender(btn.dataset.g);
   });
 });
+
+/* ══════════════════════════════════════════════════════════════════
+   SETTINGS PANEL — theme + language
+   ══════════════════════════════════════════════════════════════════ */
+const settingsBtn   = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+
+function openSettingsPanel(){
+  settingsPanel.classList.remove('hidden');
+  settingsBtn.classList.add('active');
+  settingsBtn.setAttribute('aria-expanded','true');
+}
+function closeSettingsPanel(){
+  settingsPanel.classList.add('hidden');
+  settingsBtn.classList.remove('active');
+  settingsBtn.setAttribute('aria-expanded','false');
+}
+settingsBtn.addEventListener('click', ()=>
+  settingsPanel.classList.contains('hidden') ? openSettingsPanel() : closeSettingsPanel()
+);
+document.getElementById('settings-close').addEventListener('click', closeSettingsPanel);
+
+/* Keeps the gear button flush against the gender toggle's left edge in
+   every layout (desktop centered pill, phone right-aligned pill) without
+   needing separate positioning rules per breakpoint. */
+function positionSettingsWrap(){
+  const wrap = document.getElementById('settings-wrap');
+  const gt   = document.getElementById('gender-tog');
+  if(!wrap || !gt) return;
+  const parent = wrap.offsetParent || document.getElementById('map-panel');
+  const parentRect = parent.getBoundingClientRect();
+  const gtRect = gt.getBoundingClientRect();
+  const gap = 8;
+  wrap.style.right = (parentRect.right - gtRect.left + gap) + 'px';
+}
+window.addEventListener('resize', positionSettingsWrap);
+positionSettingsWrap();
+
+/* ── Theme (Light / Dark) ─────────────────────────────────────── */
+const THEME_KEY = 'pv-theme';
+
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('theme-color-meta')?.setAttribute('content', theme==='dark' ? '#14141c' : '#1a4fa0');
+  document.querySelectorAll('#theme-toggle .st-opt').forEach(b =>
+    b.classList.toggle('on', b.dataset.themeChoice === theme)
+  );
+}
+function initTheme(){
+  const saved = localStorage.getItem(THEME_KEY);
+  const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyTheme(theme);
+}
+document.querySelectorAll('#theme-toggle .st-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const theme = btn.dataset.themeChoice;
+    localStorage.setItem(THEME_KEY, theme);
+    applyTheme(theme);
+  });
+});
+initTheme();
+
+/* ── Language (English / Français) ───────────────────────────── */
+const LANG_KEY = 'pv-lang';
+
+function setLanguage(lang){
+  window.currentLanguage = lang;
+  localStorage.setItem(LANG_KEY, lang);
+  document.querySelectorAll('#lang-toggle .st-opt').forEach(b =>
+    b.classList.toggle('on', b.dataset.langChoice === lang)
+  );
+  window.applyTranslations();
+}
+function initLanguage(){
+  const saved = localStorage.getItem(LANG_KEY);
+  setLanguage(saved || 'en');
+}
+document.querySelectorAll('#lang-toggle .st-opt').forEach(btn => {
+  btn.addEventListener('click', () => setLanguage(btn.dataset.langChoice));
+});
+initLanguage();
 
 /* ── Paint state ─────────────────────────────────────────────── */
 let activePain  = null;
@@ -1495,7 +2063,7 @@ const DEPTH_CFG = {
 };
 
 /* Brush radius in texture pixels — depth does NOT change size */
-const BR_SCALE = TEX_SIZE / 128;   /* 512/128=4: maps slider range to tex pixels */
+const BR_SCALE = TEX_SIZE / 256;   /* 512/256=2: halves the painted radius at every slider position (was /128) */
 
 const paintLog = [];
 
@@ -1816,13 +2384,119 @@ brushSlider.addEventListener('input', ()=>{
   brushVal.textContent = brushSize;
 });
 
-/* ── Intensity slider ───────────────────────────────────────── */
-const intSlider = document.getElementById('intensity-sl');
-const intVal    = document.getElementById('int-val');
-intSlider.addEventListener('input', ()=>{
-  intensity = parseInt(intSlider.value, 10);
-  intVal.textContent = intensity;
+/* ── Intensity control (compact gauge → vertical-slider popover) ── */
+const intBtn      = document.getElementById('int-btn');
+const intBtnFill  = document.getElementById('int-btn-fill');
+const intVal      = document.getElementById('int-val');
+const intPop      = document.getElementById('int-pop');
+const intPopClose = document.getElementById('int-pop-close');
+const intValBig   = document.getElementById('int-val-big');
+const intTrack    = document.getElementById('int-vtrack');
+const intMask     = document.getElementById('int-vmask');
+const intThumb    = document.getElementById('int-vthumb');
+
+const INT_MIN = 1, INT_MAX = 10;
+
+function intensityColor(v){
+  const stops = [ {v:1,c:[89,179,107]}, {v:5,c:[234,177,60]}, {v:10,c:[226,87,76]} ];
+  const [a,b] = v >= 5 ? [stops[1],stops[2]] : [stops[0],stops[1]];
+  const t = (v - a.v) / (b.v - a.v);
+  const c = a.c.map((ch,i)=>Math.round(ch + (b.c[i]-ch)*t));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+function setIntensity(v){
+  v = Math.min(INT_MAX, Math.max(INT_MIN, Math.round(v)));
+  intensity = v;
+  const pct = (v - INT_MIN) / (INT_MAX - INT_MIN) * 100;
+  intVal.textContent = v;
+  intValBig.textContent = v;
+  intBtnFill.style.height = `${pct}%`;
+  intBtnFill.style.background = intensityColor(v);
+  intMask.style.height = `${100 - pct}%`;
+  intThumb.style.bottom = `${pct}%`;
+  intTrack.setAttribute('aria-valuenow', v);
+  intTrack.setAttribute('aria-valuetext', `${v} out of 10`);
+}
+
+function positionIntPopover(){
+  const r = intBtn.getBoundingClientRect();
+  const popW = intPop.offsetWidth, popH = intPop.offsetHeight;
+  const margin = 8;
+  let left = r.left + r.width/2 - popW/2;
+  left = Math.min(Math.max(left, margin), window.innerWidth - popW - margin);
+  let top = r.top - popH - 10;
+  if (top < margin) top = r.bottom + 10;
+  intPop.style.left = `${left}px`;
+  intPop.style.top  = `${top}px`;
+}
+
+function openIntPop(){
+  intPop.classList.remove('hidden');
+  intBtn.classList.add('open');
+  intBtn.setAttribute('aria-expanded', 'true');
+  positionIntPopover();
+  document.addEventListener('pointerdown', onOutsidePointer, true);
+  document.addEventListener('keydown', onIntPopKeydown, true);
+  window.addEventListener('resize', positionIntPopover);
+  document.getElementById('paint-scroll')?.addEventListener('scroll', positionIntPopover, {passive:true});
+}
+function closeIntPop(){
+  intPop.classList.add('hidden');
+  intBtn.classList.remove('open');
+  intBtn.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('pointerdown', onOutsidePointer, true);
+  document.removeEventListener('keydown', onIntPopKeydown, true);
+  window.removeEventListener('resize', positionIntPopover);
+  document.getElementById('paint-scroll')?.removeEventListener('scroll', positionIntPopover);
+}
+function onOutsidePointer(e){
+  if (!intPop.contains(e.target) && e.target !== intBtn && !intBtn.contains(e.target)) closeIntPop();
+}
+function onIntPopKeydown(e){
+  if (e.key === 'Escape') { closeIntPop(); intBtn.focus(); }
+}
+
+intBtn.addEventListener('click', ()=>
+  intPop.classList.contains('hidden') ? openIntPop() : closeIntPop()
+);
+intPopClose.addEventListener('click', closeIntPop);
+
+function valueFromPointer(clientY){
+  const r = intTrack.getBoundingClientRect();
+  const ratio = 1 - (clientY - r.top) / r.height;
+  return INT_MIN + ratio * (INT_MAX - INT_MIN);
+}
+
+let intDragging = false;
+intTrack.addEventListener('pointerdown', (e)=>{
+  intDragging = true;
+  intTrack.classList.add('dragging');
+  intTrack.setPointerCapture(e.pointerId);
+  setIntensity(valueFromPointer(e.clientY));
+  intTrack.focus();
 });
+intTrack.addEventListener('pointermove', (e)=>{
+  if (!intDragging) return;
+  setIntensity(valueFromPointer(e.clientY));
+});
+function endIntDrag(e){
+  if (!intDragging) return;
+  intDragging = false;
+  intTrack.classList.remove('dragging');
+  try { intTrack.releasePointerCapture(e.pointerId); } catch(_) {}
+}
+intTrack.addEventListener('pointerup', endIntDrag);
+intTrack.addEventListener('pointercancel', endIntDrag);
+
+intTrack.addEventListener('keydown', (e)=>{
+  const steps = { ArrowUp:1, ArrowRight:1, ArrowDown:-1, ArrowLeft:-1, PageUp:2, PageDown:-2 };
+  if (e.key in steps) { e.preventDefault(); setIntensity(intensity + steps[e.key]); }
+  else if (e.key === 'Home') { e.preventDefault(); setIntensity(INT_MIN); }
+  else if (e.key === 'End')  { e.preventDefault(); setIntensity(INT_MAX); }
+});
+
+setIntensity(intensity);
 
 /* ── Clear ──────────────────────────────────────────────────── */
 document.getElementById('clear-btn').addEventListener('click',()=>{
@@ -1952,9 +2626,7 @@ async function persistPatients(pts){
     return true;
   }catch(e){
     console.error('[PV] Save failed',e);
-    alert('Could not save — this device may be out of storage space.\n\n'
-      +'Try "Export backup" to save your data to a file, then delete some old sessions to free up space.\n\n'
-      +'('+(e&&e.message?e.message:e)+')');
+    alert(window.I18N[window.currentLanguage].storageFullError.replace('{error}', e&&e.message?e.message:e));
     return false;
   }
 }
@@ -2083,16 +2755,15 @@ async function enterCompareMode(sA,sB){
   document.getElementById('cmp-label-b').textContent=sB.label+' · '+sB.date;
   document.getElementById('cards-panel').style.display='none';
   document.getElementById('paint-bar').style.display='none';
+  /* Not gated by painselect/paindeselect (which only fire when actually
+     picking a pain type), so compare mode — reachable straight from the
+     Patient panel without ever selecting one — must hide it explicitly. */
+  hint.classList.add('hidden');
   forceReflow(document.getElementById('map-panel'));
   /* Canvas B just went from display:none to a real flex size — resize
      synchronously rather than waiting for the ResizeObserver callback,
-     so the very first compare-mode frame renders at the correct size.
-     The immediate call handles it on most engines; the double-rAF
-     re-check is a defensive fallback for engines (seen on iOS Safari)
-     that don't always reflect the finished flex layout synchronously
-     right after the class/display toggle that triggered it. */
+     so the very first compare-mode frame renders at the correct size. */
   resizeB();
-  requestAnimationFrame(() => requestAnimationFrame(resizeB));
 }
 
 function exitCompareMode(){
@@ -2121,6 +2792,10 @@ function exitCompareMode(){
      the phone's collapsible pain-type panel stuck open. */
   document.body.classList.remove('cards-expanded');
   controls.enabled=true; isPainting=false;
+  /* Only restore the hint if there's genuinely no pain type active —
+     matches the same condition paindeselect uses — since compare mode
+     may have been entered with (or without) a selection already made. */
+  if(!activePain) hint.classList.remove('hidden');
   forceReflow(document.getElementById('map-panel'));
   /* Canvas A just went from half-width back to full-width — resize
      synchronously (same reasoning as resizeB() on entry) rather than
@@ -2128,7 +2803,6 @@ function exitCompareMode(){
      post-exit frame already has the correct aspect instead of looking
      cropped/off-center until some later resize event happens to fire. */
   resize();
-  requestAnimationFrame(() => requestAnimationFrame(resize));
   /* Reset to the standard starting view rather than leaving whatever
      angle/zoom was last orbited to — a clean, predictable state after
      a compare session, and avoids compounding with any lingering
@@ -2189,14 +2863,14 @@ async function renderDetailView(){
     row.innerHTML=
       `<span class="pp-sess-date">${sess.date}</span>`+
       `<span class="pp-sess-lbl" title="${safeEsc(sess.label)}">${safeEsc(sess.label)}</span>`+
-      `<button class="pp-sess-load">Load</button>`+
+      `<button class="pp-sess-load">${window.I18N[window.currentLanguage].load}</button>`+
       `<button class="pp-sess-del">&#xd7;</button>`;
     row.querySelector('.pp-sess-load').addEventListener('click',()=>{restoreSession(sess);closePtPanel();});
     row.querySelector('.pp-sess-del').addEventListener('click',()=>deleteSession(pt.id,sess.id));
     listEl.appendChild(row);
   });
   const fill=sel=>{
-    sel.innerHTML='<option value="">&#x2014; session &#x2014;</option>';
+    sel.innerHTML=`<option value="">${window.I18N[window.currentLanguage].sessionPlaceholder}</option>`;
     (pt.sessions||[]).slice().reverse().forEach(s=>{
       const o=document.createElement('option');
       o.value=s.id; o.textContent=s.label+' '+s.date; sel.appendChild(o);
@@ -2205,6 +2879,9 @@ async function renderDetailView(){
   fill(document.getElementById('cmp-sel-a'));
   fill(document.getElementById('cmp-sel-b'));
 }
+window.refreshPatientPanelLanguage = function(){
+  if(selectedPatientId) renderDetailView();
+};
 
 async function createPatient(name){
   name=name.trim(); if(!name) return;
@@ -2214,7 +2891,7 @@ async function createPatient(name){
 }
 
 async function deletePatient(id){
-  if(!confirm('Delete this patient and all their sessions?')) return;
+  if(!confirm(window.I18N[window.currentLanguage].confirmDeletePatient)) return;
   const pts=(await DB.load()).filter(p=>p.id!==id);
   if(!(await persistPatients(pts))) return;
   if(selectedPatientId===id){ selectedPatientId=null; showListView(); }
@@ -2272,7 +2949,7 @@ document.getElementById('pp-cmp-go').addEventListener('click',async()=>{
   const pt=(await DB.load()).find(p=>p.id===selectedPatientId); if(!pt) return;
   const sidA=document.getElementById('cmp-sel-a').value;
   const sidB=document.getElementById('cmp-sel-b').value;
-  if(!sidA||!sidB||sidA===sidB){ alert('Select two different sessions.'); return; }
+  if(!sidA||!sidB||sidA===sidB){ alert(window.I18N[window.currentLanguage].selectTwoSessions); return; }
   const sA=pt.sessions.find(s=>s.id===sidA), sB=pt.sessions.find(s=>s.id===sidB);
   if(!sA||!sB) return;
   closePtPanel();
@@ -2280,7 +2957,7 @@ document.getElementById('pp-cmp-go').addEventListener('click',async()=>{
     await enterCompareMode(sA,sB);
   }catch(e){
     console.error('[PV] enterCompareMode failed', e);
-    alert('Could not open the comparison view. Try again — if this keeps happening, try one session at a time.');
+    alert(window.I18N[window.currentLanguage].compareViewError);
     exitCompareMode();
   }
 });
@@ -2307,15 +2984,17 @@ document.getElementById('pp-import-file').addEventListener('change',async(e)=>{
     data=JSON.parse(await file.text());
     if(!Array.isArray(data)) throw new Error('File does not contain a patient list.');
   }catch(err){
-    alert('Could not read this backup file.\n\n('+err.message+')');
+    alert(window.I18N[window.currentLanguage].backupReadError.replace('{error}', err.message));
     return;
   }
-  if(!confirm(`Import "${file.name}"?\n\nThis REPLACES all patient data currently stored in this browser (${data.length} patient(s) in the file). This cannot be undone — export a backup first if unsure.`)) return;
+  const confirmMsg = window.I18N[window.currentLanguage].confirmImport
+    .replace('{file}', file.name).replace('{count}', data.length);
+  if(!confirm(confirmMsg)) return;
   if(await persistPatients(data)){
     selectedPatientId=null;
     await renderPatientList();
     showListView();
-    alert('Backup imported.');
+    alert(window.I18N[window.currentLanguage].backupImported);
   }
 });
 

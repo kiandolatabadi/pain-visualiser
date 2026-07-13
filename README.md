@@ -39,8 +39,12 @@ Pain is painted onto a 3D body map (not pinned), enabling:
   intermittent, sensory/non-painful) — see [Descriptor Set](#descriptor-set--design-rationale) below
 - **3D body map** (male and female models) that the patient paints directly, with brush intensity/depth
 - **Patient records**: create a patient, save a painted session, reopen it later
-- **Session comparison**: load two sessions from the same patient side by side on a split view
+- **Session comparison**: load two sessions from the same patient side by side on a split view, each
+  rendered in its own independent 3D view (not a shared canvas) for reliable cross-browser rendering
 - **Backup / restore**: export the full patient database to a JSON file, import it back on any device
+- **Settings panel**: light/dark theme and language (English/French)
+- **Fully responsive, touch-first UI**: works on phone, tablet, and desktop — pinch-to-zoom, a
+  collapsible pain-type picker, and safe-area-aware layout for notched phones
 - **Installable, offline-capable app** (PWA): add-to-home-screen on desktop and iOS, works with no
   network connection once loaded
 
