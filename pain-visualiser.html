@@ -153,7 +153,11 @@
     }
 
     #cards-panel { padding:2rem 1.8rem 3rem; }
-    body.has-selection #cards-panel { padding:1.2rem 1rem 2.5rem; }
+    /* When a type is active the panel is a big deselect button (see the
+       #cards-panel click handler) — hint that with a pointer cursor, while
+       the selected card keeps a default cursor over its live preview. */
+    body.has-selection #cards-panel { padding:1.2rem 1rem 2.5rem; cursor:pointer; }
+    body.has-selection .card.selected { cursor:default; }
 
     /* ── HEADER ─────────────────────────────────────────────── */
     header { margin-bottom:2rem; }
@@ -194,7 +198,7 @@
       cursor:pointer;
     }
     .card:hover { border-color:var(--card-border-hover); box-shadow:0 4px 16px var(--shadow-lite); }
-    .card.faded { opacity:0.18; pointer-events:none; }
+    .card.faded { opacity:0.5; pointer-events:none; }
     .card.selected {
       border-color:var(--accent,#888);
       box-shadow:0 0 0 2.5px var(--accent,#888), 0 6px 24px rgba(0,0,0,0.12);
@@ -1053,7 +1057,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v20</div>
+<div id="app-version">v21</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1164,56 +1168,61 @@ class DullConstant extends RhyFX {
 
 class Angor extends RhyFX {
   constructor(cv){
-    super(cv,26); this.rings=[]; this.doom=0; this.thump=0;
+    super(cv,26); this.rings=[]; this.doom=0;
     const W=cv.width,H=cv.height,maxR=Math.sqrt(W*W+H*H)*0.72;
-    for(let i=0;i<4;i++) this.rings.push({r:maxR-i*W*0.16,life:0.5+i*0.12});
+    for(let i=0;i<4;i++) this.rings.push({r:maxR-i*W*0.20,life:0.6+i*0.1});
   }
   onBeat(){
     const maxR=Math.sqrt(this.W*this.W+this.H*this.H)*0.72;
-    if(this.rings.length<14) this.rings.push({r:maxR,life:1});
-    this.doom=Math.min(this.doom+0.16,1);
-    this.thump=1; /* each beat is a fresh clench, not a pulse outward */
+    if(this.rings.length<16) this.rings.push({r:maxR,life:1});
   }
   tick(){
-    super.tick(); const {ctx,W,H}=this,d=this.doom;
-    /* base bleeds toward black as the grip/dread builds — the light going out */
+    super.tick(); const {ctx,W,H}=this;
+    /* Dread level: builds while held, and on release eases open only VERY
+       slowly (never per-beat) — so nothing here ever springs back outward.
+       Everything below is driven by `grip`, which is monotone with dread,
+       so the jaws and core only ever hold or tighten, never dilate. */
+    this.doom = this.down ? Math.min(this.doom+0.02,1) : Math.max(this.doom-0.0022,0);
+    const d=this.doom, cx=W/2, cy=H/2, grip=0.4+d*0.6, maxR=Math.sqrt(W*W+H*H)*0.72;
+
     ctx.fillStyle=`hsl(6,${42+d*22}%,${12-d*8}%)`; ctx.fillRect(0,0,W,H);
-    this.doom*=0.997; this.thump*=0.90;
-    const cx=W/2,cy=H/2,sq=Math.max(0,1-(this.t-this.lastBeat)/26);
-    /* grip PEAKS on the beat / while held — a tightening clench, never a release */
-    const grip=Math.min(1,sq*0.9+this.thump*0.5+(this.down?0.55:0)+d*0.25);
 
     ctx.save(); ctx.lineCap='round';
-    const jawGap=64-grip*46-d*8; /* two heavy jaws clamp INWARD as the grip tightens */
+    /* Two heavy jaws holding the chest in a vice. They only creep further IN
+       as dread builds; the only per-frame motion is a faint tremor, so they
+       tremble under the grip rather than pumping open and shut. */
+    const tremor=Math.sin(this.t*0.6)*1.4*(0.4+grip*0.6);
+    const jawGap=54-grip*38+tremor;
     for(const side of [-1,1]){
       const start=side<0?Math.PI*0.62:-Math.PI*0.38, end=side<0?Math.PI*1.38:Math.PI*0.38;
-      ctx.globalAlpha=0.5+grip*0.42; ctx.strokeStyle=`hsl(${8-d*4},${70+d*18}%,${32+grip*20}%)`; ctx.lineWidth=11+grip*10;
+      ctx.globalAlpha=0.55+grip*0.4; ctx.strokeStyle=`hsl(${8-d*4},${72+d*16}%,${30+grip*20}%)`; ctx.lineWidth=11+grip*11;
       ctx.beginPath(); ctx.arc(cx+side*jawGap,cy,50,start,end); ctx.stroke();
     }
 
-    /* crushed core — it SHRINKS as the vice tightens (constriction, not dilation) */
-    const coreR=Math.max(4,20-grip*13);
-    ctx.globalAlpha=0.55+grip*0.35; ctx.fillStyle=`hsl(${4-d*4},85%,${32+grip*10}%)`;
+    /* Crushed core — small, and only ever smaller as the vice tightens. */
+    const coreR=Math.max(3.5,17-grip*11);
+    ctx.globalAlpha=0.6+grip*0.3; ctx.fillStyle=`hsl(${4-d*4},85%,${30+grip*10}%)`;
     ctx.beginPath(); ctx.arc(cx,cy,coreR,0,TAU); ctx.fill();
 
-    this.rings=this.rings.filter(r=>r.r>0&&r.life>0.01);
-    for(const r of this.rings){ /* nooses converging on the centre, faster under grip */
-      r.r-=2.4+(this.bpm-26)*0.09+grip*2.2; r.life-=0.007;
-      const frac=Math.max(r.r/(Math.sqrt(W*W+H*H)*0.72),0);
-      ctx.globalAlpha=r.life*(0.3+frac*0.35+d*0.15);
-      ctx.strokeStyle=`hsl(${6+frac*14},80%,${30+frac*20}%)`; ctx.lineWidth=3.5*r.life*(1.1-frac*0.22);
+    /* The whole rhythm lives here: nooses spawned at the rim on each beat that
+       ONLY ever collapse inward toward the core, brightening/thickening as
+       they close in — a tightening grip, with no outward stroke anywhere. */
+    this.rings=this.rings.filter(r=>r.r>2&&r.life>0.02);
+    for(const r of this.rings){
+      r.r-=2.2+d*2.6+(this.bpm-26)*0.05; r.life-=0.006;
+      const frac=Math.max(r.r/maxR,0), closing=1-frac;
+      ctx.globalAlpha=r.life*(0.3+closing*0.42+d*0.14);
+      ctx.strokeStyle=`hsl(${6+frac*14},80%,${28+closing*24}%)`; ctx.lineWidth=3.2*r.life*(1.35-frac*0.45);
       ctx.beginPath(); ctx.arc(cx,cy,Math.max(r.r,0.1),0,TAU); ctx.stroke();
     }
     ctx.restore();
 
-    /* tunnel-vision vignette — darkness closes in from the edges as dread rises
-       (angor animi: the sense of impending death, vision narrowing to a point) */
-    const outer=Math.sqrt(W*W+H*H)*0.62, inner=outer*Math.max(0.14,0.62-d*0.42-grip*0.08);
+    /* Tunnel-vision vignette — darkness narrows toward a point as dread rises
+       (angor animi: the sense of impending death, vision closing in). */
+    const outer=maxR*0.86, inner=outer*Math.max(0.12,0.6-d*0.46);
     const vg=ctx.createRadialGradient(cx,cy,inner,cx,cy,outer);
-    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(0,0,0,${0.55+d*0.4})`);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(0,0,0,${0.5+d*0.42})`);
     ctx.save(); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H); ctx.restore();
-
-    if(this.down) this.doom=Math.min(this.doom+0.016,1);
   }
 }
 
@@ -1585,6 +1594,18 @@ function clearSelection(){
    to switch types, without it permanently eating canvas space. */
 document.getElementById('cards-toggle').addEventListener('click', ()=>{
   document.body.classList.toggle('cards-expanded');
+});
+
+/* Once a type is active the whole card-holder doubles as one big deselect
+   target, so you can dismiss the selection by clicking anywhere in the panel
+   instead of hunting down the one selected card's button. The selected card
+   itself keeps its own behaviour (its live preview, and its Select button
+   which toggles off); the phone "change type" strip lives outside #cards-panel
+   so it is naturally excluded and still expands the grid to switch types. */
+document.getElementById('cards-panel').addEventListener('click', (e)=>{
+  if(!document.body.classList.contains('has-selection')) return;
+  if(e.target.closest('.card.selected')) return;
+  clearSelection();
 });
 
 for(const [gridId, types] of Object.entries(REG)){
