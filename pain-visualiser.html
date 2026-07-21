@@ -1116,7 +1116,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v23</div>
+<div id="app-version">v24</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1472,11 +1472,14 @@ class Numbness extends FX {
   onDown(x,y){ super.onDown(x,y); if(this.patches.length<7) this.patches.push({x,y,r:4,life:1}); }
   onMove(x,y){ super.onMove(x,y); if(this.down&&this.patches.length<7) this.patches.push({x,y,r:4,life:1}); }
   tick(){
-    super.tick(); const {ctx,W,H}=this; ctx.fillStyle='#080b14'; ctx.fillRect(0,0,W,H); ctx.save();
-    for(const n of this.noise){ n.v+=R(-0.06,0.06); n.v=Math.max(0.05,Math.min(1,n.v)); ctx.globalAlpha=n.v*0.14; ctx.fillStyle=`hsl(220,10%,${38+n.v*16}%)`; ctx.fillRect(n.x,n.y,2,2); }
+    /* Drawn in a MUTED but genuinely saturated blue (not near-grey) so it still
+       reads as dead/numb yet carries enough hue for the card's CSS hue-rotate
+       to actually recolour it — a fully desaturated grey can't be tinted. */
+    super.tick(); const {ctx,W,H}=this; ctx.fillStyle='hsl(220,40%,6%)'; ctx.fillRect(0,0,W,H); ctx.save();
+    for(const n of this.noise){ n.v+=R(-0.06,0.06); n.v=Math.max(0.05,Math.min(1,n.v)); ctx.globalAlpha=n.v*0.16; ctx.fillStyle=`hsl(220,30%,${38+n.v*16}%)`; ctx.fillRect(n.x,n.y,2,2); }
     this.patches=this.patches.filter(p=>p.r<90||p.life>0.06);
-    for(const p of this.patches){ p.r=Math.min(p.r+0.6,90); p.life=Math.max(p.life-0.003,0.06); ctx.globalAlpha=p.life*0.5; ctx.fillStyle=`hsl(220,12%,${24+p.life*8}%)`; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,TAU); ctx.fill(); }
-    if(!this.patches.length){ const pulse=(Math.sin(this.t*0.02)+1)*0.5; ctx.globalAlpha=0.1+pulse*0.07; ctx.fillStyle='#464c5a'; ctx.beginPath(); ctx.arc(W/2,H/2,52+pulse*20,0,TAU); ctx.fill(); }
+    for(const p of this.patches){ p.r=Math.min(p.r+0.6,90); p.life=Math.max(p.life-0.003,0.06); ctx.globalAlpha=p.life*0.5; ctx.fillStyle=`hsl(220,32%,${24+p.life*8}%)`; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,TAU); ctx.fill(); }
+    if(!this.patches.length){ const pulse=(Math.sin(this.t*0.02)+1)*0.5; ctx.globalAlpha=0.1+pulse*0.07; ctx.fillStyle='hsl(220,30%,32%)'; ctx.beginPath(); ctx.arc(W/2,H/2,52+pulse*20,0,TAU); ctx.fill(); }
     ctx.restore();
   }
 }
