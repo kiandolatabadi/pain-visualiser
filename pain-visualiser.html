@@ -23,21 +23,48 @@
       --text:#1a1a30;
       --subtext:#55558a;
       --map-accent:#666;
+      /* Semantic surfaces/lines/accents — every floating panel, input,
+         divider and accent below reads from these so a single theme swap
+         (the block underneath) actually re-skins the whole UI. */
+      --panel:rgba(242,242,238,0.97);   /* frosted floating panels (cards, settings) */
+      --overlay:rgba(255,255,255,0.97); /* whiter panels (paint bar, patient, hover tip) */
+      --input-bg:#ffffff;               /* text inputs / small chips */
+      --hover:rgba(0,0,0,0.05);         /* subtle row/button hover wash */
+      --divider:rgba(0,0,0,0.08);       /* hairline separators inside panels */
+      --shadow:rgba(0,0,0,0.16);
+      --shadow-lite:rgba(0,0,0,0.10);
+      --accent-blue:#1a4fa0;            /* patient/session accents, primary buttons */
+      --accent-blue-hover:#2563c0;
+      --accent-amber:#b05a10;           /* compare "B" accent */
+      --danger:#c62828;
+      --card-border-hover:#b8b8d0;
     }
 
-    /* Dark theme: every rule in this stylesheet already reads from the
-       seven custom properties above, so redefining just these flips the
-       whole app — no per-component dark rules needed. --map-accent shifts
-       to a brighter violet so accent/focus elements stay visible against
-       the darker surfaces. */
+    /* Dark theme. The variables above are the entire skinning surface —
+       redefining them here (and only here) flips every panel, input,
+       divider, accent and shadow across the app. Kept deliberately dark:
+       real elevated surfaces near-black, borders/dividers switch to
+       light-on-dark alpha, and accents brighten so they stay legible. */
     :root[data-theme="dark"] {
-      --bg:#14141c;
-      --surface:#1e1e28;
+      --bg:#0f0f16;
+      --surface:#1c1c26;
       --border:#33334a;
-      --dim:#7a7a9a;
+      --dim:#8f8fb0;
       --text:#eaeaf5;
-      --subtext:#a8a8d0;
-      --map-accent:#8a8aff;
+      --subtext:#b0b0d8;
+      --map-accent:#9a9aff;
+      --panel:rgba(24,24,32,0.96);
+      --overlay:rgba(30,30,42,0.97);
+      --input-bg:#26263480;
+      --hover:rgba(255,255,255,0.07);
+      --divider:rgba(255,255,255,0.09);
+      --shadow:rgba(0,0,0,0.55);
+      --shadow-lite:rgba(0,0,0,0.45);
+      --accent-blue:#6b9ae0;
+      --accent-blue-hover:#83abe8;
+      --accent-amber:#e0973f;
+      --danger:#ff6b6b;
+      --card-border-hover:#4a4a68;
     }
 
     html, body { height:100%; overflow:hidden; font-size:16px; }
@@ -100,9 +127,9 @@
       left:50%; top:50%;
       transform:translate(-50%,-50%);
       width:min(96vw, 1180px);
-      background:rgba(242,242,238,0.97);
+      background:var(--panel);
       border-radius:18px;
-      box-shadow:0 10px 60px rgba(0,0,0,0.16);
+      box-shadow:0 10px 60px var(--shadow);
       backdrop-filter:blur(10px);
       -webkit-backdrop-filter:blur(10px);
       max-height:88vh;
@@ -166,7 +193,7 @@
       box-shadow:0 2px 8px rgba(0,0,0,0.06);
       cursor:pointer;
     }
-    .card:hover { border-color:#b8b8d0; box-shadow:0 4px 16px rgba(0,0,0,0.10); }
+    .card:hover { border-color:var(--card-border-hover); box-shadow:0 4px 16px var(--shadow-lite); }
     .card.faded { opacity:0.18; pointer-events:none; }
     .card.selected {
       border-color:var(--accent,#888);
@@ -197,7 +224,7 @@
       border-radius:0 0 11px 11px;
     }
     .sel:hover {
-      background:color-mix(in srgb, var(--accent,#888) 10%, #fff);
+      background:color-mix(in srgb, var(--accent,#888) 14%, var(--surface));
       color:var(--accent,#333);
     }
     .sel.on { background:var(--accent,#555); color:#fff; }
@@ -208,9 +235,9 @@
       position:absolute; z-index:25;
       bottom:1.2rem; left:1.2rem; right:1.2rem;
       display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap;
-      background:rgba(255,255,255,0.97);
+      background:var(--overlay);
       border-radius:16px; padding:0.85rem 1.4rem;
-      box-shadow:0 4px 30px rgba(0,0,0,0.14);
+      box-shadow:0 4px 30px var(--shadow);
       backdrop-filter:blur(8px);
       opacity:0; transform:translateY(18px);
       pointer-events:none;
@@ -250,7 +277,7 @@
       background:var(--bg); color:var(--dim);
       cursor:pointer; transition:all 0.18s; white-space:nowrap;
     }
-    .dep:hover { color:var(--text); border-color:var(--dim); background:#fff; }
+    .dep:hover { color:var(--text); border-color:var(--dim); background:var(--surface); }
     .dep.on { color:#fff; border-color:transparent; background:var(--map-accent); }
     .dico {
       width:12px; height:12px; border-radius:50%; flex-shrink:0; display:inline-block;
@@ -279,7 +306,7 @@
       border-radius:24px; color:var(--dim); cursor:pointer;
       transition:color 0.18s, border-color 0.18s;
     }
-    #clear-btn:hover { color:#c62828; border-color:#c62828; }
+    #clear-btn:hover { color:var(--danger); border-color:var(--danger); }
 
     /* Invisible on desktop: children behave as direct #paint-bar flex items,
        identical to before this wrapper existed. Only becomes a real
@@ -292,9 +319,9 @@
     /* ── HOVER TOOLTIP ──────────────────────────────────────── */
     #hover-tip {
       position:fixed; display:none; z-index:200;
-      background:#fff; border:1.5px solid var(--border);
+      background:var(--overlay); border:1.5px solid var(--border);
       border-radius:10px; padding:0.55rem 0.85rem;
-      box-shadow:0 6px 28px rgba(0,0,0,0.14);
+      box-shadow:0 6px 28px var(--shadow);
       pointer-events:none; min-width:145px;
     }
     .tc { display:flex; align-items:center; gap:0.5rem; padding:0.18rem 0; }
@@ -306,7 +333,7 @@
     /* ── CURSOR RING ────────────────────────────────────────── */
     #cursor-ring {
       position:fixed; border-radius:50%;
-      border:2px solid rgba(20,20,40,0.55);
+      border:2px solid color-mix(in srgb, var(--text) 55%, transparent);
       pointer-events:none; z-index:300;
       display:none; transform:translate(-50%,-50%);
       transition:width 0.12s, height 0.12s, border-color 0.2s;
@@ -316,9 +343,9 @@
     #gender-tog {
       position:absolute; z-index:22;
       top:1rem; left:50%; transform:translateX(-50%);
-      display:flex; background:rgba(255,255,255,0.96);
+      display:flex; background:var(--overlay);
       border-radius:24px; border:1.5px solid var(--border);
-      box-shadow:0 2px 12px rgba(0,0,0,0.10); overflow:hidden;
+      box-shadow:0 2px 12px var(--shadow-lite); overflow:hidden;
     }
     .gtog {
       padding:0.48rem 1.2rem;
@@ -327,14 +354,14 @@
       color:var(--dim); transition:background 0.18s, color 0.18s; white-space:nowrap;
     }
     .gtog + .gtog { border-left:1.5px solid var(--border); }
-    .gtog.on { background:var(--text); color:#fff; }
+    .gtog.on { background:var(--text); color:var(--bg); }
 
     /* ── ERROR LOG ──────────────────────────────────────────── */
     #el {
       position:fixed; bottom:0; left:0; right:0; max-height:80px;
-      overflow-y:auto; background:rgba(255,245,245,0.97); color:#c62828;
+      overflow-y:auto; background:var(--overlay); color:var(--danger);
       font-size:0.75rem; font-family:monospace; padding:0.3rem 0.6rem;
-      display:none; z-index:999; border-top:1px solid #ffbbbb;
+      display:none; z-index:999; border-top:1px solid var(--danger);
     }
   
 
@@ -345,16 +372,16 @@
       display:flex; align-items:center; gap:0.35rem;
       padding:0.32rem 0.75rem; font-size:0.67rem; font-weight:600;
       letter-spacing:0.06em; text-transform:uppercase;
-      background:rgba(255,255,255,0.92); border:1px solid var(--border);
+      background:var(--overlay); border:1px solid var(--border);
       border-radius:20px; color:var(--dim); cursor:pointer;
-      backdrop-filter:blur(8px); box-shadow:0 1px 4px rgba(0,0,0,0.07);
+      backdrop-filter:blur(8px); box-shadow:0 1px 4px var(--shadow-lite);
       transition:all 0.15s;
     }
-    #pt-btn:hover { color:var(--text); border-color:#aaa; box-shadow:0 2px 8px rgba(0,0,0,0.11); }
-    #pt-btn.active { color:var(--text); border-color:#999; background:rgba(255,255,255,0.98); }
+    #pt-btn:hover { color:var(--text); border-color:var(--dim); box-shadow:0 2px 8px var(--shadow); }
+    #pt-btn.active { color:var(--text); border-color:var(--dim); background:var(--overlay); }
     #pt-btn::before { content:''; display:block; width:6px; height:6px;
                       border-radius:50%; background:var(--dim); opacity:0.45; }
-    #pt-btn.active::before { background:#3a7bd5; opacity:1; }
+    #pt-btn.active::before { background:var(--accent-blue); opacity:1; }
 
     /* ── Settings button + panel ─────────────────────────────── */
     #settings-wrap {
@@ -372,7 +399,7 @@
       transition:all 0.15s;
     }
     #settings-btn svg { width:16px; height:16px; }
-    #settings-btn:hover { color:var(--text); border-color:#aaa; box-shadow:0 2px 8px rgba(0,0,0,0.11); }
+    #settings-btn:hover { color:var(--text); border-color:var(--dim); box-shadow:0 2px 8px var(--shadow); }
     #settings-btn.active {
       color:var(--text); border-color:var(--dim);
       background:color-mix(in srgb, var(--surface) 98%, transparent);
@@ -524,9 +551,9 @@
     #pt-panel {
       position:absolute; left:0.9rem; top:3rem; z-index:30;
       width:264px;
-      background:rgba(248,248,244,0.98); backdrop-filter:blur(12px);
-      border:1px solid rgba(0,0,0,0.12); border-radius:16px;
-      box-shadow:0 8px 32px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.06);
+      background:var(--overlay); backdrop-filter:blur(12px);
+      border:1px solid var(--border); border-radius:16px;
+      box-shadow:0 8px 32px var(--shadow), 0 1px 4px var(--shadow-lite);
       font-size:0.78rem; overflow:visible;
     }
     #pt-panel.hidden { display:none; }
@@ -534,51 +561,52 @@
     .pp-head {
       display:flex; align-items:center; justify-content:space-between;
       padding:0.65rem 0.9rem 0.55rem;
-      border-bottom:1px solid rgba(0,0,0,0.08);
+      border-bottom:1px solid var(--divider);
     }
     .pp-title { font-weight:700; font-size:0.66rem; letter-spacing:0.12em;
-                text-transform:uppercase; color:#888; }
+                text-transform:uppercase; color:var(--dim); }
     .pp-x { background:none; border:none; cursor:pointer; font-size:1rem;
-             color:#bbb; padding:0 0.15rem; line-height:1; border-radius:50%;
+             color:var(--dim); padding:0 0.15rem; line-height:1; border-radius:50%;
              width:20px; height:20px; display:flex; align-items:center; justify-content:center; }
-    .pp-x:hover { color:#555; background:rgba(0,0,0,0.06); }
+    .pp-x:hover { color:var(--text); background:var(--hover); }
     .pp-back { background:none; border:none; cursor:pointer; font-size:0.9rem;
-               color:#888; padding:0 0.15rem; line-height:1; border-radius:50%;
+               color:var(--dim); padding:0 0.15rem; line-height:1; border-radius:50%;
                width:20px; height:20px; display:flex; align-items:center; justify-content:center; }
-    .pp-back:hover { color:#1a4fa0; background:rgba(58,123,213,0.1); }
+    .pp-back:hover { color:var(--accent-blue); background:var(--hover); }
 
     .pp-new { display:flex; gap:0.4rem; padding:0.55rem 0.75rem;
-              border-bottom:1px solid rgba(0,0,0,0.06); }
+              border-bottom:1px solid var(--divider); }
     .pp-new input {
-      flex:1; border:1px solid rgba(0,0,0,0.15); border-radius:9px;
-      padding:0.3rem 0.55rem; font-size:0.72rem; background:#fff; outline:none;
+      flex:1; border:1px solid var(--border); border-radius:9px;
+      padding:0.3rem 0.55rem; font-size:0.72rem; background:var(--input-bg);
+      color:var(--text); outline:none;
       transition:border-color 0.15s;
     }
-    .pp-new input:focus { border-color:#3a7bd5; box-shadow:0 0 0 2px rgba(58,123,213,0.12); }
+    .pp-new input:focus { border-color:var(--accent-blue); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent-blue) 28%, transparent); }
     .pp-new button {
       padding:0.28rem 0.65rem; font-size:0.69rem; font-weight:600;
-      border:1px solid rgba(0,0,0,0.18); border-radius:9px;
-      background:#fff; cursor:pointer; white-space:nowrap; color:#444;
+      border:1px solid var(--border); border-radius:9px;
+      background:var(--input-bg); cursor:pointer; white-space:nowrap; color:var(--subtext);
       transition:all 0.12s;
     }
-    .pp-new button:hover { background:#f0f0f0; border-color:#999; }
+    .pp-new button:hover { background:var(--hover); border-color:var(--dim); }
 
     #pp-list { overflow-y:auto; max-height:148px; }
     .pp-pt-row {
       display:flex; align-items:center; padding:0.42rem 0.75rem;
-      cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04);
+      cursor:pointer; border-bottom:1px solid var(--divider);
       transition:background 0.1s;
     }
     .pp-pt-row:last-child { border-bottom:none; }
-    .pp-pt-row:hover { background:rgba(0,0,0,0.035); }
-    .pp-pt-row.active { background:rgba(58,123,213,0.08); }
+    .pp-pt-row:hover { background:var(--hover); }
+    .pp-pt-row.active { background:color-mix(in srgb, var(--accent-blue) 14%, transparent); }
     .pp-pt-name { flex:1; font-size:0.75rem; overflow:hidden;
-                  text-overflow:ellipsis; white-space:nowrap; color:#333; }
-    .pp-pt-row.active .pp-pt-name { font-weight:600; color:#1a4fa0; }
+                  text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
+    .pp-pt-row.active .pp-pt-name { font-weight:600; color:var(--accent-blue); }
     .pp-pt-del { background:none; border:none; cursor:pointer;
-                 color:#ccc; font-size:0.8rem; padding:0 0.15rem;
+                 color:var(--dim); font-size:0.8rem; padding:0 0.15rem;
                  border-radius:4px; transition:color 0.12s; }
-    .pp-pt-del:hover { color:#c62828; }
+    .pp-pt-del:hover { color:var(--danger); }
 
     #pp-sessions {
       display:flex; flex-direction:column;
@@ -586,78 +614,80 @@
     #pp-sess-list { overflow-y:auto; max-height:130px; }
     .pp-sess-row { display:flex; align-items:center; gap:0.35rem;
                    padding:0.32rem 0.75rem;
-                   border-bottom:1px solid rgba(0,0,0,0.04); }
+                   border-bottom:1px solid var(--divider); }
     .pp-sess-row:last-child { border-bottom:none; }
-    .pp-sess-date { color:#aaa; font-size:0.67rem;
+    .pp-sess-date { color:var(--dim); font-size:0.67rem;
                     font-variant-numeric:tabular-nums; flex-shrink:0; }
     .pp-sess-lbl { flex:1; font-size:0.72rem; overflow:hidden;
-                   text-overflow:ellipsis; white-space:nowrap; color:#444; }
+                   text-overflow:ellipsis; white-space:nowrap; color:var(--subtext); }
     .pp-sess-load { padding:0.1rem 0.45rem; font-size:0.64rem; font-weight:600;
-                    border:1px solid rgba(0,0,0,0.18); border-radius:6px;
-                    background:#fff; cursor:pointer; flex-shrink:0; color:#444;
+                    border:1px solid var(--border); border-radius:6px;
+                    background:var(--input-bg); cursor:pointer; flex-shrink:0; color:var(--subtext);
                     transition:all 0.12s; }
-    .pp-sess-load:hover { border-color:#3a7bd5; color:#3a7bd5; }
+    .pp-sess-load:hover { border-color:var(--accent-blue); color:var(--accent-blue); }
     .pp-sess-del { background:none; border:none; cursor:pointer;
-                   color:#ccc; font-size:0.78rem; padding:0; flex-shrink:0;
+                   color:var(--dim); font-size:0.78rem; padding:0; flex-shrink:0;
                    transition:color 0.12s; }
-    .pp-sess-del:hover { color:#c62828; }
+    .pp-sess-del:hover { color:var(--danger); }
 
     .pp-save-row { display:flex; gap:0.4rem; padding:0.5rem 0.75rem;
-                   border-top:1px solid rgba(0,0,0,0.08); }
+                   border-top:1px solid var(--divider); }
     .pp-save-row input {
-      flex:1; border:1px solid rgba(0,0,0,0.15); border-radius:9px;
-      padding:0.28rem 0.48rem; font-size:0.7rem; background:#fff; outline:none;
+      flex:1; border:1px solid var(--border); border-radius:9px;
+      padding:0.28rem 0.48rem; font-size:0.7rem; background:var(--input-bg);
+      color:var(--text); outline:none;
       transition:border-color 0.15s;
     }
-    .pp-save-row input:focus { border-color:#3a7bd5; box-shadow:0 0 0 2px rgba(58,123,213,0.12); }
+    .pp-save-row input:focus { border-color:var(--accent-blue); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent-blue) 28%, transparent); }
     .pp-save-row button {
       padding:0.28rem 0.7rem; font-size:0.69rem; font-weight:600;
-      background:#1a4fa0; color:#fff; border:none; border-radius:9px; cursor:pointer;
+      background:var(--accent-blue); color:#fff; border:none; border-radius:9px; cursor:pointer;
       transition:background 0.12s;
     }
-    .pp-save-row button:hover { background:#2563c0; }
+    .pp-save-row button:hover { background:var(--accent-blue-hover); }
 
     .pp-cmp-row {
       display:flex; align-items:center; gap:0.28rem;
       padding:0.38rem 0.75rem 0.6rem;
-      border-top:1px solid rgba(0,0,0,0.06);
+      border-top:1px solid var(--divider);
     }
     .pp-cmp-row select {
-      flex:1; border:1px solid rgba(0,0,0,0.15); border-radius:7px;
-      padding:0.22rem 0.25rem; font-size:0.65rem; background:#fff; min-width:0;
+      flex:1; border:1px solid var(--border); border-radius:7px;
+      padding:0.22rem 0.25rem; font-size:0.65rem; background:var(--input-bg);
+      color:var(--text); min-width:0;
       outline:none;
     }
-    .pp-cmp-vs { color:#bbb; font-size:0.65rem; flex-shrink:0; }
+    .pp-cmp-vs { color:var(--dim); font-size:0.65rem; flex-shrink:0; }
     .pp-cmp-row button {
       padding:0.24rem 0.6rem; font-size:0.72rem; font-weight:700;
-      background:#1a4fa0; color:#fff; border:none; border-radius:8px;
+      background:var(--accent-blue); color:#fff; border:none; border-radius:8px;
       cursor:pointer; flex-shrink:0; transition:background 0.12s;
     }
-    .pp-cmp-row button:hover { background:#2563c0; }
+    .pp-cmp-row button:hover { background:var(--accent-blue-hover); }
 
     /* ── Compare bar + divider ──────────────────────────────── */
     #cmp-bar {
       position:absolute; top:0; left:0; right:0; z-index:25;
       display:flex; align-items:center; gap:0.6rem;
       padding:0.45rem 1rem;
-      background:rgba(248,248,244,0.97); backdrop-filter:blur(10px);
-      border-bottom:1px solid rgba(0,0,0,0.1); font-size:0.73rem;
-      box-shadow:0 1px 6px rgba(0,0,0,0.06);
+      background:var(--overlay); backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--divider); font-size:0.73rem;
+      box-shadow:0 1px 6px var(--shadow-lite);
     }
     #cmp-bar.hidden { display:none; }
-    #cmp-label-a { font-weight:600; color:#1a4fa0; }
-    #cmp-label-b { font-weight:600; color:#b05a10; }
-    .cmp-vs { color:#bbb; font-size:0.65rem; }
+    #cmp-label-a { font-weight:600; color:var(--accent-blue); }
+    #cmp-label-b { font-weight:600; color:var(--accent-amber); }
+    .cmp-vs { color:var(--dim); font-size:0.65rem; }
     #cmp-exit {
       margin-left:auto; padding:0.24rem 0.72rem; font-size:0.66rem; font-weight:600;
-      border:1px solid rgba(0,0,0,0.15); border-radius:20px;
-      background:#fff; cursor:pointer; color:#888;
+      border:1px solid var(--border); border-radius:20px;
+      background:var(--input-bg); cursor:pointer; color:var(--dim);
       transition:all 0.15s;
     }
-    #cmp-exit:hover { color:#c62828; border-color:#c62828; background:#fff5f5; }
+    #cmp-exit:hover { color:var(--danger); border-color:var(--danger); background:color-mix(in srgb, var(--danger) 12%, transparent); }
     #cmp-divider {
       position:absolute; left:calc(50% - 1px); top:0; bottom:0;
-      width:2px; background:rgba(0,0,0,0.13); pointer-events:none;
+      width:2px; background:var(--border); pointer-events:none;
       display:none; z-index:24;
     }
 
@@ -665,8 +695,8 @@
        actually loaded — bump the text whenever CACHE_NAME bumps in sw.js. */
     #app-version {
       position:fixed; top:0.3rem; right:0.3rem; z-index:999;
-      font-family:monospace; font-size:0.6rem; color:rgba(0,0,0,0.32);
-      background:rgba(255,255,255,0.55); padding:0.05rem 0.35rem; border-radius:6px;
+      font-family:monospace; font-size:0.6rem; color:var(--dim);
+      background:color-mix(in srgb, var(--surface) 55%, transparent); padding:0.05rem 0.35rem; border-radius:6px;
       pointer-events:none;
     }
     @media (max-width:600px){
@@ -1023,7 +1053,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v19</div>
+<div id="app-version">v20</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1134,43 +1164,56 @@ class DullConstant extends RhyFX {
 
 class Angor extends RhyFX {
   constructor(cv){
-    super(cv,28); this.rings=[]; this.doom=0;
+    super(cv,26); this.rings=[]; this.doom=0; this.thump=0;
     const W=cv.width,H=cv.height,maxR=Math.sqrt(W*W+H*H)*0.72;
     for(let i=0;i<4;i++) this.rings.push({r:maxR-i*W*0.16,life:0.5+i*0.12});
   }
   onBeat(){
     const maxR=Math.sqrt(this.W*this.W+this.H*this.H)*0.72;
     if(this.rings.length<14) this.rings.push({r:maxR,life:1});
-    this.doom=Math.min(this.doom+0.22,1);
+    this.doom=Math.min(this.doom+0.16,1);
+    this.thump=1; /* each beat is a fresh clench, not a pulse outward */
   }
   tick(){
     super.tick(); const {ctx,W,H}=this,d=this.doom;
-    ctx.fillStyle=`hsl(14,${44+d*28}%,${15+d*7}%)`; ctx.fillRect(0,0,W,H);
-    this.doom*=0.9965;
-    const cx=W/2,cy=H/2,sq=Math.max(0,1-(this.t-this.lastBeat)/28);
-    const grip=Math.min(1,sq*1.25+(this.down?0.5:0));
+    /* base bleeds toward black as the grip/dread builds — the light going out */
+    ctx.fillStyle=`hsl(6,${42+d*22}%,${12-d*8}%)`; ctx.fillRect(0,0,W,H);
+    this.doom*=0.997; this.thump*=0.90;
+    const cx=W/2,cy=H/2,sq=Math.max(0,1-(this.t-this.lastBeat)/26);
+    /* grip PEAKS on the beat / while held — a tightening clench, never a release */
+    const grip=Math.min(1,sq*0.9+this.thump*0.5+(this.down?0.55:0)+d*0.25);
 
     ctx.save(); ctx.lineCap='round';
-    const jawGap=52-grip*26; /* jaws slide inward as grip intensifies */
+    const jawGap=64-grip*46-d*8; /* two heavy jaws clamp INWARD as the grip tightens */
     for(const side of [-1,1]){
-      const start=side<0?Math.PI*0.66:-Math.PI*0.34, end=side<0?Math.PI*1.34:Math.PI*0.34;
-      ctx.globalAlpha=0.55+grip*0.4; ctx.strokeStyle=`hsl(${28+d*8},95%,${52+grip*14}%)`; ctx.lineWidth=9+grip*7;
-      ctx.beginPath(); ctx.arc(cx+side*jawGap,cy,46,start,end); ctx.stroke();
+      const start=side<0?Math.PI*0.62:-Math.PI*0.38, end=side<0?Math.PI*1.38:Math.PI*0.38;
+      ctx.globalAlpha=0.5+grip*0.42; ctx.strokeStyle=`hsl(${8-d*4},${70+d*18}%,${32+grip*20}%)`; ctx.lineWidth=11+grip*10;
+      ctx.beginPath(); ctx.arc(cx+side*jawGap,cy,50,start,end); ctx.stroke();
     }
 
-    ctx.globalAlpha=0.5+d*0.3+sq*0.2; ctx.fillStyle=`hsl(${20-d*6},90%,${46+sq*18}%)`;
-    ctx.beginPath(); ctx.arc(cx,cy,14+sq*16,0,TAU); ctx.fill();
+    /* crushed core — it SHRINKS as the vice tightens (constriction, not dilation) */
+    const coreR=Math.max(4,20-grip*13);
+    ctx.globalAlpha=0.55+grip*0.35; ctx.fillStyle=`hsl(${4-d*4},85%,${32+grip*10}%)`;
+    ctx.beginPath(); ctx.arc(cx,cy,coreR,0,TAU); ctx.fill();
 
     this.rings=this.rings.filter(r=>r.r>0&&r.life>0.01);
-    for(const r of this.rings){
-      r.r-=2.8+(this.bpm-28)*0.08; r.life-=0.007;
+    for(const r of this.rings){ /* nooses converging on the centre, faster under grip */
+      r.r-=2.4+(this.bpm-26)*0.09+grip*2.2; r.life-=0.007;
       const frac=Math.max(r.r/(Math.sqrt(W*W+H*H)*0.72),0);
-      ctx.globalAlpha=r.life*(0.35+frac*0.4+d*0.15);
-      ctx.strokeStyle=`hsl(${10+frac*20},88%,${40+frac*22}%)`; ctx.lineWidth=3.5*r.life*(1.1-frac*0.22);
+      ctx.globalAlpha=r.life*(0.3+frac*0.35+d*0.15);
+      ctx.strokeStyle=`hsl(${6+frac*14},80%,${30+frac*20}%)`; ctx.lineWidth=3.5*r.life*(1.1-frac*0.22);
       ctx.beginPath(); ctx.arc(cx,cy,Math.max(r.r,0.1),0,TAU); ctx.stroke();
     }
-    if(this.down) this.doom=Math.min(this.doom+0.016,1);
     ctx.restore();
+
+    /* tunnel-vision vignette — darkness closes in from the edges as dread rises
+       (angor animi: the sense of impending death, vision narrowing to a point) */
+    const outer=Math.sqrt(W*W+H*H)*0.62, inner=outer*Math.max(0.14,0.62-d*0.42-grip*0.08);
+    const vg=ctx.createRadialGradient(cx,cy,inner,cx,cy,outer);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(0,0,0,${0.55+d*0.4})`);
+    ctx.save(); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H); ctx.restore();
+
+    if(this.down) this.doom=Math.min(this.doom+0.016,1);
   }
 }
 
@@ -1319,19 +1362,6 @@ class Shooting extends FX {
   }
 }
 
-class CoupDePoignard extends FX {
-  constructor(cv){ super(cv); this.tears=[]; this.idt=0; }
-  _tear(px,py){ if(this.tears.length>=3) return; const angle=R(0,TAU),bigL=Math.sqrt(this.W*this.W+this.H*this.H); this.tears.push({x1:px-Math.cos(angle)*bigL,y1:py-Math.sin(angle)*bigL,x2:px+Math.cos(angle)*bigL,y2:py+Math.sin(angle)*bigL,life:1,flash:1}); }
-  onDown(x,y){ super.onDown(x,y); this._tear(x,y); }
-  tick(){
-    super.tick(); const {ctx,W,H}=this; this.fade(0.15);
-    this.idt++; if(this.idt>160&&!this.ptr){ this.idt=0; this._tear(W/2+R(-30,30),H/2+R(-20,20)); }
-    ctx.save(); ctx.lineCap='butt'; this.tears=this.tears.filter(t=>t.life>0.02);
-    for(const te of this.tears){ if(te.flash>0.02){ ctx.globalAlpha=te.flash*0.55; ctx.fillStyle='#fffef5'; ctx.fillRect(0,0,W,H); te.flash*=0.62; } te.life-=0.012; ctx.globalAlpha=te.life*0.22; ctx.strokeStyle='#ffddcc'; ctx.lineWidth=28*te.life; ctx.beginPath(); ctx.moveTo(te.x1,te.y1); ctx.lineTo(te.x2,te.y2); ctx.stroke(); ctx.globalAlpha=te.life*0.5; ctx.strokeStyle='#ffaa88'; ctx.lineWidth=8*te.life; ctx.beginPath(); ctx.moveTo(te.x1,te.y1); ctx.lineTo(te.x2,te.y2); ctx.stroke(); ctx.globalAlpha=te.life*0.95; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(te.x1,te.y1); ctx.lineTo(te.x2,te.y2); ctx.stroke(); }
-    ctx.restore();
-  }
-}
-
 class Tingling extends FX {
   constructor(cv){ super(cv); this.sparks=[]; }
   _spawn(x,y,n){ for(let i=0;i<n&&this.sparks.length<70;i++) this.sparks.push({x:x+R(-24,24),y:y+R(-24,24),vx:R(-1.1,1.1),vy:R(-1.1,1.1),life:R(0.35,0.8),s:R(1,3),h:R(220,305)}); }
@@ -1368,49 +1398,6 @@ class Itching extends FX {
     if(this.ptr&&this.mites.length<48) for(let i=0;i<3;i++) this._add(this.ptr.x+R(-16,16),this.ptr.y+R(-16,16));
     ctx.save(); this.mites=this.mites.filter(m=>m.life>0.03);
     for(const m of this.mites){ m.vx+=R(-0.32,0.32); m.vy+=R(-0.32,0.32); const spd=Math.sqrt(m.vx*m.vx+m.vy*m.vy); if(spd>2){ m.vx*=0.5; m.vy*=0.5; } m.x+=m.vx; m.y+=m.vy; m.life-=m.decay; if(m.x<0) m.x=W; if(m.x>W) m.x=0; if(m.y<0) m.y=H; if(m.y>H) m.y=0; ctx.globalAlpha=m.life*0.72; ctx.fillStyle=`hsl(${m.h+this.t*0.07},62%,58%)`; ctx.beginPath(); ctx.arc(m.x,m.y,m.s,0,TAU); ctx.fill(); }
-    ctx.restore();
-  }
-}
-
-class Allodynia extends FX {
-  constructor(cv){ super(cv); this.floats=[]; this.panics=[]; this.cd=0; for(let i=0;i<16;i++) this._addF(true); }
-  _addF(any=false){ if(this.floats.length>=16) return; this.floats.push({x:R(0,this.W),y:any?R(0,this.H):this.H+4,vx:R(-0.22,0.22),vy:R(-0.45,-0.12),life:1,decay:R(0.004,0.008),s:R(1.8,4)}); }
-  _trigger(x,y){ if(this.cd>0||this.panics.length>=4) return; this.panics.push({x,y,life:1,born:this.t}); this.cd=36; }
-  onMove(x,y){ super.onMove(x,y); this._trigger(x,y); }
-  onDown(x,y){ super.onDown(x,y); this._trigger(x,y); }
-  tick(){
-    super.tick(); const {ctx,W,H,t}=this; this.fade(0.12); if(this.cd>0) this.cd--;
-    while(this.floats.length<16) this._addF();
-    ctx.save(); this.floats=this.floats.filter(f=>f.life>0.03);
-    for(const f of this.floats){ f.x+=f.vx+Math.sin(t*0.024+f.s)*0.22; f.y+=f.vy; f.life-=f.decay; ctx.globalAlpha=f.life*0.35; ctx.fillStyle='hsl(340,52%,65%)'; ctx.beginPath(); ctx.arc(f.x,f.y,f.s,0,TAU); ctx.fill(); }
-    this.panics=this.panics.filter(p=>p.life>0.02); ctx.lineCap='round';
-    for(const p of this.panics){ p.life-=0.022; const age=t-p.born,ringR=age*3.6,ex=Math.min(age/10,1); if(ringR<W+20){ ctx.globalAlpha=p.life*0.55; ctx.strokeStyle=`hsl(${10-p.life*5},90%,${50+p.life*16}%)`; ctx.lineWidth=2*p.life; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(ringR,0.1),0,TAU); ctx.stroke(); } for(let i=0;i<8;i++){ const a=(i/8)*TAU,l=28*ex*p.life; ctx.globalAlpha=p.life*0.6*ex; ctx.strokeStyle='hsl(5,88%,60%)'; ctx.lineWidth=1.4*p.life; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+Math.cos(a)*l,p.y+Math.sin(a)*l); ctx.stroke(); } }
-    ctx.restore();
-  }
-}
-
-class Hypoesthesia extends FX {
-  constructor(cv){ super(cv); this.sparks=[]; }
-  _spawn(x,y,n){ for(let i=0;i<n&&this.sparks.length<22;i++) this.sparks.push({x:x+R(-32,32),y:y+R(-32,32),vx:R(-0.4,0.4),vy:R(-0.4,0.4),life:R(0.2,0.5),s:R(0.8,2)}); }
-  tick(){
-    super.tick(); const {ctx,W,H}=this; this.fade(0.06);
-    if(Math.random()<0.1&&this.sparks.length<22) this._spawn(R(0,W),R(0,H),1);
-    if(this.ptr&&Math.random()<0.5) this._spawn(this.ptr.x,this.ptr.y,2);
-    ctx.save(); this.sparks=this.sparks.filter(s=>s.life>0.02);
-    for(const s of this.sparks){ s.x+=s.vx; s.y+=s.vy; s.vx*=0.94; s.vy*=0.94; s.life-=0.02; ctx.globalAlpha=s.life*0.45; ctx.fillStyle=`hsl(220,8%,${52+s.life*18}%)`; ctx.beginPath(); ctx.arc(s.x,s.y,Math.max(s.s*s.life,0.1),0,TAU); ctx.fill(); }
-    ctx.globalAlpha=0.06; ctx.fillStyle='#1e2030'; ctx.fillRect(0,0,W,H); ctx.restore();
-  }
-}
-
-class Anesthesia extends FX {
-  constructor(cv){ super(cv); this.ghosts=[]; }
-  onDown(x,y){ super.onDown(x,y); if(this.ghosts.length<6) this.ghosts.push({x,y,life:1,decay:0.12}); }
-  tick(){
-    super.tick(); const {ctx,W,H}=this; ctx.fillStyle='#08090e'; ctx.fillRect(0,0,W,H);
-    if(Math.random()<0.06){ ctx.globalAlpha=0.06; ctx.fillStyle='#2a2d38'; ctx.fillRect(R(0,W),R(0,H),2,2); }
-    ctx.save(); ctx.globalAlpha=0.28; ctx.strokeStyle='#2e3350'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,H*0.5); ctx.lineTo(W,H*0.5); ctx.stroke(); ctx.restore(); ctx.save();
-    this.ghosts=this.ghosts.filter(g=>g.life>0.02);
-    for(const g of this.ghosts){ g.life-=g.decay; ctx.globalAlpha=g.life*0.5; ctx.fillStyle='#505565'; ctx.beginPath(); ctx.arc(g.x,H*0.5,Math.max(5*g.life,0.1),0,TAU); ctx.fill(); }
     ctx.restore();
   }
 }
@@ -1460,8 +1447,8 @@ window.I18N = {
     painTypes: {
       throbbing:'Throbbing', cramping:'Cramping', dull:'Dull & Constant', angor:'Angor / Angina',
       burning:'Burning', cold:'Cold / Freezing', aching:'Aching', heavy:'Heavy',
-      stabbing:'Stabbing', electric:'Electric Shock', sharp:'Sharp / Piercing', shooting:'Shooting', poignard:'Coup de Poignard',
-      tingling:'Tingling', numbness:'Numbness', itching:'Itching', allodynia:'Allodynia', hypo:'Hypoesthesia', anesthesia:'Anesthesia',
+      stabbing:'Stabbing', electric:'Electric Shock', sharp:'Sharp / Piercing', shooting:'Shooting',
+      tingling:'Tingling', numbness:'Numbness', itching:'Itching',
     },
   },
   fr: {
@@ -1496,8 +1483,8 @@ window.I18N = {
     painTypes: {
       throbbing:'Lancinante', cramping:'Crampe', dull:'Sourde et constante', angor:'Angor',
       burning:'Brûlure', cold:'Froid / Glacial', aching:'Endolorie', heavy:'Lourdeur',
-      stabbing:'Poignardante', electric:'Décharge électrique', sharp:'Aiguë / Perçante', shooting:'Fulgurante', poignard:'Coup de Poignard',
-      tingling:'Fourmillements', numbness:'Engourdissement', itching:'Démangeaison', allodynia:'Allodynie', hypo:'Hypoesthésie', anesthesia:'Anesthésie',
+      stabbing:'Poignardante', electric:'Décharge électrique', sharp:'Aiguë / Perçante', shooting:'Fulgurante',
+      tingling:'Fourmillements', numbness:'Engourdissement', itching:'Démangeaison',
     },
   },
 };
@@ -1562,7 +1549,7 @@ const REG = {
     {id:'throbbing', label:'Throbbing',       Cls:Throbbing,      accent:'#e53935', hint:'hold to speed up'},
     {id:'cramping',  label:'Cramping',         Cls:Cramping,       accent:'#880e4f', hint:'hold — feel it lock'},
     {id:'dull',      label:'Dull & Constant',  Cls:DullConstant,   accent:'#795548', hint:'never zero'},
-    {id:'angor',     label:'Angor / Angina',   Cls:Angor,          accent:'#1565c0', hint:'hold — feel the grip'},
+    {id:'angor',     label:'Angor / Angina',   Cls:Angor,          accent:'#7f0f16', hint:'hold — a crushing grip'},
   ],
   gb:[
     {id:'burning',   label:'Burning',          Cls:Burning,        accent:'#e65100', hint:'drag to spread'},
@@ -1575,15 +1562,11 @@ const REG = {
     {id:'electric',  label:'Electric Shock',   Cls:Electric,       accent:'#558b2f', hint:'tap to shock'},
     {id:'sharp',     label:'Sharp / Piercing', Cls:Sharp,          accent:'#00897b', hint:'tap — goes through'},
     {id:'shooting',  label:'Shooting',         Cls:Shooting,       accent:'#283593', hint:'tap to fire'},
-    {id:'poignard',  label:'Coup de Poignard', Cls:CoupDePoignard, accent:'#ad1457', hint:'tap — tears through'},
   ],
   gd:[
     {id:'tingling',  label:'Tingling',         Cls:Tingling,       accent:'#8e24aa', hint:'move for sparks'},
     {id:'numbness',  label:'Numbness',         Cls:Numbness,       accent:'#546e7a', hint:'tap to spread'},
     {id:'itching',   label:'Itching',          Cls:Itching,        accent:'#2e7d32', hint:'tap to concentrate'},
-    {id:'allodynia', label:'Allodynia',        Cls:Allodynia,      accent:'#c62828', hint:'any touch hurts'},
-    {id:'hypo',      label:'Hypoesthesia',     Cls:Hypoesthesia,   accent:'#9e9e9e', hint:'less than expected'},
-    {id:'anesthesia',label:'Anesthesia',       Cls:Anesthesia,     accent:'#263238', hint:'nothing responds'},
   ],
 };
 
@@ -2004,15 +1987,22 @@ const THEME_KEY = 'pv-theme';
 
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('theme-color-meta')?.setAttribute('content', theme==='dark' ? '#14141c' : '#1a4fa0');
+  document.getElementById('theme-color-meta')?.setAttribute('content', theme==='dark' ? '#0f0f16' : '#1a4fa0');
   document.querySelectorAll('#theme-toggle .st-opt').forEach(b =>
     b.classList.toggle('on', b.dataset.themeChoice === theme)
   );
+  /* The body-map canvas is cleared by the WebGL renderer, not CSS, so the
+     backdrop behind the 3D model has to be repainted here too — otherwise
+     dark mode leaves a big light-grey rectangle behind everything. */
+  const clear = theme==='dark' ? 0x101018 : 0xededea;
+  renderer?.setClearColor(clear, 1);
+  rendererB?.setClearColor(clear, 1);
 }
 function initTheme(){
+  /* Default to Light regardless of the OS preference — only an explicit
+     in-app choice (persisted under THEME_KEY) switches to Dark. */
   const saved = localStorage.getItem(THEME_KEY);
-  const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  applyTheme(theme);
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
 }
 document.querySelectorAll('#theme-toggle .st-opt').forEach(btn => {
   btn.addEventListener('click', () => {

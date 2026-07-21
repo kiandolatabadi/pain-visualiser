@@ -1,2 +1,5 @@
 .DS_Store
 .claude/settings.local.json
+
+# Local patient-data backups exported from the app — never publish these
+pain-visualiser-backup-*.json
