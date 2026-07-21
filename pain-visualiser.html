@@ -430,6 +430,14 @@
        auto-inverts correctly in dark mode. */
     .st-section { padding:0.65rem 0.9rem; }
     .st-section + .st-section { border-top:1px solid var(--border); }
+    /* "My pain colour" picker row (revealed when the Custom option is on) */
+    .st-paincolor-row { display:flex; align-items:center; gap:0.55rem; margin-top:0.5rem; cursor:pointer; }
+    .st-paincolor-row.hidden { display:none; }
+    .st-paincolor-row input[type=color] {
+      width:36px; height:26px; padding:0; border:1.5px solid var(--border);
+      border-radius:7px; background:var(--input-bg); cursor:pointer; flex-shrink:0;
+    }
+    .st-paincolor-hint { font-size:0.62rem; color:var(--dim); line-height:1.3; }
     .st-label {
       font-size:0.62rem; font-weight:700; letter-spacing:0.1em;
       text-transform:uppercase; color:var(--dim); margin-bottom:0.4rem;
@@ -669,6 +677,42 @@
     }
     .pp-cmp-row button:hover { background:var(--accent-blue-hover); }
 
+    /* ── Session legend (types + intensities of a loaded/compared file) ──── */
+    #session-legend {
+      position:absolute; z-index:24; left:1rem; bottom:1rem;
+      max-width:min(52vw,300px); max-height:46vh; overflow-y:auto;
+      display:flex; flex-direction:column; gap:0.7rem;
+      padding:0.6rem 0.75rem; font-size:0.72rem;
+      background:var(--overlay); backdrop-filter:blur(10px);
+      border:1px solid var(--border); border-radius:12px;
+      box-shadow:0 4px 22px var(--shadow-lite);
+    }
+    #session-legend.hidden { display:none; }
+    .leg-group { display:flex; flex-direction:column; gap:0.32rem; }
+    .leg-group + .leg-group { border-top:1px solid var(--divider); padding-top:0.6rem; }
+    .leg-group-title {
+      font-size:0.6rem; font-weight:700; letter-spacing:0.06em;
+      text-transform:uppercase; color:var(--dim);
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .leg-empty { font-size:0.68rem; color:var(--dim); font-style:italic; }
+    .leg-row { display:flex; align-items:center; gap:0.45rem; }
+    .leg-dot {
+      width:11px; height:11px; border-radius:50%; flex-shrink:0;
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2);
+    }
+    .leg-name {
+      flex:1; color:var(--text); min-width:0;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .leg-int { display:flex; align-items:center; gap:0.4rem; flex-shrink:0; }
+    .leg-bar { width:36px; height:5px; border-radius:3px; background:var(--border); overflow:hidden; }
+    .leg-bar > i { display:block; height:100%; border-radius:3px; }
+    .leg-num { color:var(--subtext); font-size:0.66rem; font-variant-numeric:tabular-nums; min-width:3.1em; text-align:right; }
+    @media (max-width:600px){
+      #session-legend { left:0.6rem; bottom:calc(0.6rem + env(safe-area-inset-bottom,0px)); font-size:0.68rem; max-width:64vw; }
+    }
+
     /* ── Compare bar + divider ──────────────────────────────── */
     #cmp-bar {
       position:absolute; top:0; left:0; right:0; z-index:25;
@@ -884,6 +928,18 @@
         </div>
 
         <div class="st-section">
+          <div class="st-label" data-i18n="settingsPainColor">Pain colour</div>
+          <div class="st-toggle" id="paincolor-toggle">
+            <button class="st-opt on" data-paincolor="distinct" data-i18n="painColorDistinct">Distinct</button>
+            <button class="st-opt" data-paincolor="custom" data-i18n="painColorCustom">My colour</button>
+          </div>
+          <label id="paincolor-row" class="st-paincolor-row hidden">
+            <input type="color" id="paincolor-input" value="#d31717">
+            <span class="st-paincolor-hint" data-i18n="painColorHint">Every type takes this colour</span>
+          </label>
+        </div>
+
+        <div class="st-section">
           <div class="st-label" data-i18n="settingsLanguage">Language</div>
           <div class="st-toggle" id="lang-toggle">
             <button class="st-opt on" data-lang-choice="en">English</button>
@@ -902,6 +958,9 @@
       <button id="cmp-exit" data-i18n="cmpExit">Exit compare</button>
     </div>
     <div id="cmp-divider"></div>
+
+    <!-- Loaded/compared session summary: pain types + intensities -->
+    <div id="session-legend" class="hidden"></div>
 
     <!-- Patient panel -->
     <div id="pt-panel" class="hidden">
@@ -993,7 +1052,7 @@
         <button class="dep on" data-d="skin"><span class="dico"></span><span data-i18n="depthSkin">Skin</span></button>
         <button class="dep" data-d="sub"><span class="dico"></span><span data-i18n="depthSubQ">Sub-Q</span></button>
         <button class="dep" data-d="muscular"><span class="dico"></span><span data-i18n="depthMuscle">Muscle</span></button>
-        <button class="dep" data-d="visceral"><span class="dico"></span><span data-i18n="depthVisceral">Visceral</span></button>
+        <button class="dep" data-d="visceral"><span class="dico"></span><span data-i18n="depthVisceral">Deep</span></button>
         <button class="dep dep-eraser" data-d="eraser"><span class="dico"></span><span data-i18n="depthEraser">Eraser</span></button>
       </div>
 
@@ -1057,7 +1116,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v22</div>
+<div id="app-version">v23</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1458,7 +1517,7 @@ window.I18N = {
     changePainType: 'Change pain type',
     mapHintLoading: 'Loading models…',
     mapHintDefault: '← Select a pain type on the right<br>then paint it on the body',
-    depthSkin: 'Skin', depthSubQ: 'Sub-Q', depthMuscle: 'Muscle', depthVisceral: 'Visceral', depthEraser: 'Eraser',
+    depthSkin: 'Skin', depthSubQ: 'Sub-Q', depthMuscle: 'Muscle', depthVisceral: 'Deep', depthEraser: 'Eraser',
     brush: 'Brush', intensity: 'Intensity', clear: 'Clear',
     intensityMild: 'Mild', intensitySevere: 'Severe',
     genderMale: '♂ Male', genderFemale: '♀ Female',
@@ -1470,6 +1529,8 @@ window.I18N = {
     selectTwoSessions: 'Select two different sessions.',
     cmpVs: 'vs', cmpExit: 'Exit compare',
     settingsTitle: 'Settings', settingsTheme: 'Theme', settingsLight: 'Light', settingsDark: 'Dark', settingsLanguage: 'Language',
+    settingsPainColor: 'Pain colour', painColorDistinct: 'Distinct', painColorCustom: 'My colour', painColorHint: 'My pain is this colour — every type takes it',
+    legendEmpty: 'No pain recorded',
     cardSelect: 'Select', cardActive: '● Active',
     storageFullError: 'Could not save — this device may be out of storage space.\n\nTry "Export backup" to save your data to a file, then delete some old sessions to free up space.\n\n({error})',
     confirmDeletePatient: 'Delete this patient and all their sessions?',
@@ -1494,7 +1555,7 @@ window.I18N = {
     changePainType: 'Changer de type de douleur',
     mapHintLoading: 'Chargement des modèles…',
     mapHintDefault: '← Sélectionnez un type de douleur à droite<br>puis peignez-le sur le corps',
-    depthSkin: 'Peau', depthSubQ: 'Sous-cut.', depthMuscle: 'Muscle', depthVisceral: 'Viscérale', depthEraser: 'Gomme',
+    depthSkin: 'Peau', depthSubQ: 'Sous-cut.', depthMuscle: 'Muscle', depthVisceral: 'Profond', depthEraser: 'Gomme',
     brush: 'Pinceau', intensity: 'Intensité', clear: 'Effacer',
     intensityMild: 'Légère', intensitySevere: 'Sévère',
     genderMale: '♂ Homme', genderFemale: '♀ Femme',
@@ -1506,6 +1567,8 @@ window.I18N = {
     selectTwoSessions: 'Sélectionnez deux séances différentes.',
     cmpVs: 'vs', cmpExit: 'Quitter la comparaison',
     settingsTitle: 'Paramètres', settingsTheme: 'Thème', settingsLight: 'Clair', settingsDark: 'Sombre', settingsLanguage: 'Langue',
+    settingsPainColor: 'Couleur de la douleur', painColorDistinct: 'Distinctes', painColorCustom: 'Ma couleur', painColorHint: 'Ma douleur est de cette couleur — tous les types la prennent',
+    legendEmpty: 'Aucune douleur enregistrée',
     cardSelect: 'Sélectionner', cardActive: '● Actif',
     storageFullError: "Impossible d'enregistrer — cet appareil manque peut-être d'espace de stockage.\n\nEssayez « Exporter la sauvegarde » pour enregistrer vos données dans un fichier, puis supprimez d'anciennes séances pour libérer de l'espace.\n\n({error})",
     confirmDeletePatient: 'Supprimer ce patient et toutes ses séances ?',
@@ -1577,39 +1640,88 @@ window.applyTranslations = function applyTranslations(){
 };
 
 /* ── REGISTRY ─────────────────────────────────────────────── */
+/* Each type carries THREE colour facts, so the animation, the paint it lays
+   down and the card accent all read as one colour, and so a custom colour can
+   recolour everything at once:
+   - accent   : the paint/UI colour (also the default target hue below).
+   - hue      : that accent's hue — the colour the paint & tinted animation show.
+   - nativeHue: the hue the raw <canvas> animation is actually drawn in, so we
+                can CSS `hue-rotate` each card by (target - nativeHue) to make
+                the animation match its paint (and later, a custom colour).
+   The default palette is spread around the wheel for maximum distinguishability
+   while keeping the obvious anchors (burning=orange, cold=cyan, electric=yellow,
+   tingling=violet, heavy=steel, numbness=grey). */
 const REG = {
   ga:[
-    {id:'throbbing', label:'Throbbing',       Cls:Throbbing,      accent:'#e53935', hint:'hold to speed up'},
-    {id:'cramping',  label:'Cramping',         Cls:Cramping,       accent:'#880e4f', hint:'hold — feel it lock'},
-    {id:'dull',      label:'Dull & Constant',  Cls:DullConstant,   accent:'#795548', hint:'never zero'},
-    {id:'angor',     label:'Angor / Angina',   Cls:Angor,          accent:'#7f0f16', hint:'hold — clamps like a vice'},
+    {id:'throbbing', label:'Throbbing',       Cls:Throbbing,      accent:'#d61f6b', hue:335, nativeHue:348, hint:'hold to speed up'},
+    {id:'cramping',  label:'Cramping',         Cls:Cramping,       accent:'#b136c9', hue:290, nativeHue:5,   hint:'hold — feel it lock'},
+    {id:'dull',      label:'Dull & Constant',  Cls:DullConstant,   accent:'#a9802d', hue:40,  nativeHue:20,  hint:'never zero'},
+    {id:'angor',     label:'Angor / Angina',   Cls:Angor,          accent:'#c11532', hue:350, nativeHue:356, hint:'hold — clamps like a vice'},
   ],
   gb:[
-    {id:'burning',   label:'Burning',          Cls:Burning,        accent:'#e65100', hint:'drag to spread'},
-    {id:'cold',      label:'Cold / Freezing',  Cls:Cold,           accent:'#0097a7', hint:'tap to feel the bite'},
-    {id:'aching',    label:'Aching',           Cls:Aching,         accent:'#6a1b9a', hint:'always present'},
-    {id:'heavy',     label:'Heavy',            Cls:Heavy,          accent:'#37474f', hint:'move to add weight'},
+    {id:'burning',   label:'Burning',          Cls:Burning,        accent:'#f5800a', hue:30,  nativeHue:30,  hint:'drag to spread'},
+    {id:'cold',      label:'Cold / Freezing',  Cls:Cold,           accent:'#19abc8', hue:190, nativeHue:200, hint:'tap to feel the bite'},
+    {id:'aching',    label:'Aching',           Cls:Aching,         accent:'#bc2f98', hue:315, nativeHue:352, hint:'always present'},
+    {id:'heavy',     label:'Heavy',            Cls:Heavy,          accent:'#446da7', hue:215, nativeHue:210, hint:'move to add weight'},
   ],
   gc:[
-    {id:'stabbing',  label:'Stabbing',         Cls:Stabbing,       accent:'#f57f17', hint:'tap to stab'},
-    {id:'electric',  label:'Electric Shock',   Cls:Electric,       accent:'#558b2f', hint:'tap to shock'},
-    {id:'sharp',     label:'Sharp / Piercing', Cls:Sharp,          accent:'#00897b', hint:'tap — goes through'},
-    {id:'shooting',  label:'Shooting',         Cls:Shooting,       accent:'#283593', hint:'tap to fire'},
+    {id:'stabbing',  label:'Stabbing',         Cls:Stabbing,       accent:'#d31717', hue:0,   nativeHue:0,   hint:'tap to stab'},
+    {id:'electric',  label:'Electric Shock',   Cls:Electric,       accent:'#f9e910', hue:56,  nativeHue:222, hint:'tap to shock'},
+    {id:'sharp',     label:'Sharp / Piercing', Cls:Sharp,          accent:'#1daf92', hue:168, nativeHue:213, hint:'tap — goes through'},
+    {id:'shooting',  label:'Shooting',         Cls:Shooting,       accent:'#4949d4', hue:240, nativeHue:215, hint:'tap to fire'},
   ],
   gd:[
-    {id:'tingling',  label:'Tingling',         Cls:Tingling,       accent:'#8e24aa', hint:'move for sparks'},
-    {id:'numbness',  label:'Numbness',         Cls:Numbness,       accent:'#546e7a', hint:'tap to spread'},
-    {id:'itching',   label:'Itching',          Cls:Itching,        accent:'#2e7d32', hint:'tap to concentrate'},
+    {id:'tingling',  label:'Tingling',         Cls:Tingling,       accent:'#864ed0', hue:266, nativeHue:262, hint:'move for sparks'},
+    {id:'numbness',  label:'Numbness',         Cls:Numbness,       accent:'#7e889a', hue:220, nativeHue:220, hint:'tap to spread'},
+    {id:'itching',   label:'Itching',          Cls:Itching,        accent:'#6cb12f', hue:92,  nativeHue:10,  hint:'tap to concentrate'},
   ],
 };
 
 /* ── BUILD CARDS ─────────────────────────────────────────── */
-const allFx = [];
+const allFx = [];       /* {fx, card, canvas, type, id} per built card */
+let activeTypeId = null; /* which type is currently painting, if any */
+
+/* ── Pain colour palette ──────────────────────────────────────────────────
+   Default: each type keeps its own distinct colour (REG.accent / .hue). The
+   patient can instead say "my pain is THIS colour" — one custom colour that
+   every type adopts. Either way, a card's animation is CSS `hue-rotate`d from
+   the hue it is natively drawn in to the target hue, so the animation reads in
+   the same colour as the paint it lays down. */
+const PAINCOLOR_KEY = 'pv-paincolor';
+let customPainColor = null;   /* hex when a custom colour is chosen, else null */
+
+function hexHue(hex){
+  const n=parseInt(hex.slice(1),16), r=(n>>16&255)/255, g=(n>>8&255)/255, b=(n&255)/255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
+  if(!d) return 0;
+  let h; if(mx===r) h=((g-b)/d)%6; else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4;
+  return (h*60+360)%360;
+}
+/* the colour a given type paints & displays right now */
+function paintColorFor(type){ return customPainColor || type.accent; }
+
+/* Re-skin every card (accent + animation tint) to its current paint colour,
+   and if a type is live, push the new colour through to the paint layer. */
+function applyPainPalette(){
+  const customHue = customPainColor!=null ? hexHue(customPainColor) : null;
+  for(const e of allFx){
+    const t=e.type;
+    const targetHue = customHue!=null ? customHue : t.hue;
+    e.card.style.setProperty('--accent', customPainColor || t.accent);
+    e.canvas.style.filter = `hue-rotate(${((targetHue - t.nativeHue)%360).toFixed(1)}deg)`;
+  }
+  if(activeTypeId){
+    const t=allFx.find(e=>e.id===activeTypeId)?.type;
+    if(t) document.dispatchEvent(new CustomEvent('painselect',
+      {detail:{id:t.id,label:t.label,color:paintColorFor(t)}}));
+  }
+}
 
 function clearSelection(){
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('faded','selected'));
   document.querySelectorAll('.sel.on').forEach(b=>{ b.classList.remove('on'); b.textContent=window.I18N[window.currentLanguage].cardSelect; });
   document.body.classList.remove('has-selection','cards-expanded');
+  activeTypeId = null;
   document.dispatchEvent(new CustomEvent('paindeselect'));
 }
 
@@ -1657,7 +1769,8 @@ for(const [gridId, types] of Object.entries(REG)){
         document.body.classList.add('has-selection');
         document.body.classList.remove('cards-expanded');
         document.getElementById('cards-wrapper').scrollTop = 0;
-        document.dispatchEvent(new CustomEvent('painselect',{detail:{id:type.id,label:type.label,color:type.accent}}));
+        activeTypeId = type.id;
+        document.dispatchEvent(new CustomEvent('painselect',{detail:{id:type.id,label:type.label,color:paintColorFor(type)}}));
       }
     });
 
@@ -1667,7 +1780,7 @@ for(const [gridId, types] of Object.entries(REG)){
     let fx;
     try{ fx = new type.Cls(canvas); }
     catch(e){ logErr(`INIT ${type.id}`,e); card.classList.add('err'); continue; }
-    allFx.push({fx,card,id:type.id});
+    allFx.push({fx,card,canvas,type,id:type.id});
 
     const toCV=(e,touch=false)=>{ const rect=canvas.getBoundingClientRect(),sx=canvas.width/rect.width,sy=canvas.height/rect.height,s=touch?e.touches[0]:e; return {x:(s.clientX-rect.left)*sx,y:(s.clientY-rect.top)*sy}; };
     canvas.addEventListener('mouseenter',  ()=>card.classList.add('active'));
@@ -1703,6 +1816,38 @@ for(const [gridId, types] of Object.entries(REG)){
     },{passive:false});
   }
 }
+
+/* ── Pain colour picker (settings) ─────────────────────────────────────── */
+(function initPainColor(){
+  const toggle = document.getElementById('paincolor-toggle');
+  const row    = document.getElementById('paincolor-row');
+  const input  = document.getElementById('paincolor-input');
+
+  function setMode(mode, color){
+    if(mode==='custom'){
+      customPainColor = color || input.value || '#d31717';
+      input.value = customPainColor;
+      row.classList.remove('hidden');
+      localStorage.setItem(PAINCOLOR_KEY, customPainColor);
+    } else {
+      customPainColor = null;
+      row.classList.add('hidden');
+      localStorage.setItem(PAINCOLOR_KEY, 'distinct');
+    }
+    toggle.querySelectorAll('.st-opt').forEach(b=>
+      b.classList.toggle('on', b.dataset.paincolor===mode));
+    applyPainPalette();
+  }
+
+  toggle.querySelectorAll('.st-opt').forEach(b=>
+    b.addEventListener('click', ()=>setMode(b.dataset.paincolor)));
+  input.addEventListener('input', ()=>setMode('custom', input.value));
+
+  /* restore persisted choice, and apply the initial per-card tint either way */
+  const saved = localStorage.getItem(PAINCOLOR_KEY);
+  if(saved && saved!=='distinct' && /^#[0-9a-fA-F]{6}$/.test(saved)) setMode('custom', saved);
+  else applyPainPalette();
+})();
 
 (function loop(){
   requestAnimationFrame(loop);
@@ -2288,7 +2433,7 @@ function paintAt(mesh, hit){
     partName: part.name, uvx: uv.x, uvy: uv.y,
     brushUV: br / TEX_SIZE,
     painId: activePain.id, label: activePain.label,
-    color: activePain.color, depth: activeDepth,
+    color: activePain.color, depth: activeDepth, intensity,
   });
   if(paintLog.length > 4000) paintLog.splice(0, 800);
 }
@@ -2387,11 +2532,13 @@ cvEl.addEventListener('pointerup', ()=>{
 document.addEventListener('painselect', e=>{
   activePain = e.detail;
   typeDot.style.background  = activePain.color;
-  typeName.textContent      = activePain.label;
+  typeName.dataset.typeId   = activePain.id;
+  typeName.textContent      = window.I18N[window.currentLanguage].painTypes[activePain.id] || activePain.label;
   typeName.classList.add('live');
   document.getElementById('paint-bar').style.setProperty('--map-accent', activePain.color);
   hint.classList.add('hidden');
   document.querySelectorAll('.pslider').forEach(s=>s.style.accentColor=activePain.color);
+  hideSessionLegend();   /* switching to painting = leaving "analyse" mode */
 });
 
 document.addEventListener('paindeselect', ()=>{
@@ -2544,6 +2691,7 @@ document.getElementById('clear-btn').addEventListener('click',()=>{
     tex.needsUpdate=true;
   }
   paintLog.length=0;
+  hideSessionLegend();
 });
 
 /* ── Render loop ─────────────────────────────────────────────── */
@@ -2669,10 +2817,27 @@ function genId(){ return Date.now().toString(36)+Math.random().toString(36).slic
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function safeEsc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
+/* Roll the per-stroke paint log up into one row per pain type — colour, the
+   intensity range it was painted at, and the depths used — so a saved session
+   carries a human-readable summary of what it contains (see showSessionLegend,
+   which surfaces it when a file is loaded or compared). */
+function summarizePaint(){
+  const byId=new Map();
+  for(const s of paintLog){
+    let e=byId.get(s.painId);
+    if(!e){ e={painId:s.painId, label:s.label, color:s.color, min:s.intensity??null, max:s.intensity??null, depths:new Set(), count:0}; byId.set(s.painId,e); }
+    e.color=s.color;                       /* most-recent colour wins */
+    if(s.intensity!=null){ e.min=e.min==null?s.intensity:Math.min(e.min,s.intensity); e.max=e.max==null?s.intensity:Math.max(e.max,s.intensity); }
+    if(s.depth) e.depths.add(s.depth);
+    e.count++;
+  }
+  return [...byId.values()].map(e=>({...e, depths:[...e.depths]})).sort((a,b)=>b.count-a.count);
+}
+
 function captureSession(label){
   const tex={};
   for(const m of bodyParts) tex[m.userData.name]=m.userData.cvD.toDataURL('image/jpeg',0.65);
-  return { id:genId(), date:todayStr(), label:label||todayStr(), gender:activeGender, textures:tex };
+  return { id:genId(), date:todayStr(), label:label||todayStr(), gender:activeGender, textures:tex, summary:summarizePaint() };
 }
 
 /* Loads a data-URL image but never hangs or throws — mobile devices can
@@ -2710,6 +2875,55 @@ function restoreSession(sess){
     });
   }
 }
+
+/* ── Session legend ────────────────────────────────────────────────────────
+   Surfaces a loaded/compared session's pain types + intensities on screen, so
+   the file can be understood at a glance without hunting over the model. Reads
+   the summary baked into the session at save time (see summarizePaint). */
+const legendEl = document.getElementById('session-legend');
+
+function renderLegendGroup(sess, tag, tagColor){
+  const dict = window.I18N[window.currentLanguage];
+  const wrap = document.createElement('div'); wrap.className='leg-group';
+  if(tag){
+    const t=document.createElement('div'); t.className='leg-group-title';
+    if(tagColor) t.style.color=tagColor;
+    t.textContent = tag;
+    wrap.appendChild(t);
+  }
+  const sum = sess.summary;
+  if(!sum || !sum.length){
+    const empty=document.createElement('div'); empty.className='leg-empty';
+    empty.textContent = dict.legendEmpty; wrap.appendChild(empty); return wrap;
+  }
+  for(const e of sum){
+    const row=document.createElement('div'); row.className='leg-row';
+    const dot=document.createElement('span'); dot.className='leg-dot'; dot.style.background=e.color;
+    const name=document.createElement('span'); name.className='leg-name';
+    name.textContent = dict.painTypes[e.painId] || e.label || e.painId;
+    row.append(dot,name);
+    if(e.max!=null){
+      const box=document.createElement('span'); box.className='leg-int';
+      const bar=document.createElement('span'); bar.className='leg-bar';
+      const fill=document.createElement('i'); fill.style.width=Math.round(e.max/10*100)+'%';
+      fill.style.background=intensityColor(e.max); bar.appendChild(fill);
+      const num=document.createElement('span'); num.className='leg-num';
+      num.textContent = (e.min!==e.max ? `${e.min}–${e.max}` : `${e.max}`) + '/10';
+      box.append(bar,num); row.appendChild(box);
+    }
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+/* entries: [{sess, tag, color}] — one group per session (two in compare mode) */
+function showSessionLegend(entries){
+  if(!legendEl) return;
+  legendEl.innerHTML='';
+  for(const g of entries) legendEl.appendChild(renderLegendGroup(g.sess, g.tag, g.color));
+  legendEl.classList.remove('hidden');
+}
+function hideSessionLegend(){ legendEl?.classList.add('hidden'); }
 
 /* ══════════════════════════════════════════════════════════════════
    COMPARISON MODE  (scissor — same exact viewpoint on both sides)
@@ -2788,6 +3002,10 @@ async function enterCompareMode(sA,sB){
   document.getElementById('cmp-divider').style.display='block';
   document.getElementById('cmp-label-a').textContent=sA.label+' · '+sA.date;
   document.getElementById('cmp-label-b').textContent=sB.label+' · '+sB.date;
+  showSessionLegend([
+    {sess:sA, tag:sA.label+' · '+sA.date, color:'var(--accent-blue)'},
+    {sess:sB, tag:sB.label+' · '+sB.date, color:'var(--accent-amber)'},
+  ]);
   document.getElementById('cards-panel').style.display='none';
   document.getElementById('paint-bar').style.display='none';
   /* Not gated by painselect/paindeselect (which only fire when actually
@@ -2820,6 +3038,7 @@ function exitCompareMode(){
   document.body.classList.remove('compare-active');
   document.getElementById('cmp-bar').classList.add('hidden');
   document.getElementById('cmp-divider').style.display='none';
+  hideSessionLegend();
   document.getElementById('cards-panel').style.display='';
   document.getElementById('paint-bar').style.display='';
   /* Defensive full reset: if compare mode was entered/exited around a
@@ -2900,7 +3119,7 @@ async function renderDetailView(){
       `<span class="pp-sess-lbl" title="${safeEsc(sess.label)}">${safeEsc(sess.label)}</span>`+
       `<button class="pp-sess-load">${window.I18N[window.currentLanguage].load}</button>`+
       `<button class="pp-sess-del">&#xd7;</button>`;
-    row.querySelector('.pp-sess-load').addEventListener('click',()=>{restoreSession(sess);closePtPanel();});
+    row.querySelector('.pp-sess-load').addEventListener('click',()=>{restoreSession(sess);showSessionLegend([{sess,tag:sess.label+' · '+sess.date}]);closePtPanel();});
     row.querySelector('.pp-sess-del').addEventListener('click',()=>deleteSession(pt.id,sess.id));
     listEl.appendChild(row);
   });
