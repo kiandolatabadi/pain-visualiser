@@ -1057,7 +1057,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v21</div>
+<div id="app-version">v22</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1166,63 +1166,87 @@ class DullConstant extends RhyFX {
   }
 }
 
+/* ANGOR / ANGINA — "serré comme dans un étau", avec la sensation de mort
+   imminente (angor animi). Rebuilt around a single unmistakable idea: a vice
+   of dark muscle CLENCHES inward onto a chest-core on every heartbeat, the
+   field darkens toward black, and a tunnel-vision vignette narrows to a point.
+   Hard rule that killed the old "it dilates" complaint: nothing here ever
+   grows outward. Every clench is a band that travels rim→centre and dies; the
+   core only ever holds or shrinks; the vignette only ever closes. Holding the
+   card drives the crescendo — the grip accelerates and the light goes out. */
 class Angor extends RhyFX {
   constructor(cv){
-    super(cv,26); this.rings=[]; this.doom=0;
-    const W=cv.width,H=cv.height,maxR=Math.sqrt(W*W+H*H)*0.72;
-    for(let i=0;i<4;i++) this.rings.push({r:maxR-i*W*0.20,life:0.6+i*0.1});
+    super(cv,42);
+    this.dread=0;     /* slow build toward blackout / death; rises only while held */
+    this.crush=0;     /* transient dim as the clench bites the core */
+    this.pulse=0;     /* transient flare right after the crush (the heart kicking) */
+    this.clench=Math.min(cv.width,cv.height)*0.40; /* the ONE grip in flight, or null */
   }
   onBeat(){
-    const maxR=Math.sqrt(this.W*this.W+this.H*this.H)*0.72;
-    if(this.rings.length<16) this.rings.push({r:maxR,life:1});
+    /* Start a clench only when the previous one has finished. Exactly one grip
+       is ever in flight, so there is never a second ring for the eye to latch
+       onto — the motion can only ever read as a single inward squeeze. */
+    if(this.clench==null) this.clench=Math.min(this.W,this.H)*0.62;
   }
   tick(){
-    super.tick(); const {ctx,W,H}=this;
-    /* Dread level: builds while held, and on release eases open only VERY
-       slowly (never per-beat) — so nothing here ever springs back outward.
-       Everything below is driven by `grip`, which is monotone with dread,
-       so the jaws and core only ever hold or tighten, never dilate. */
-    this.doom = this.down ? Math.min(this.doom+0.02,1) : Math.max(this.doom-0.0022,0);
-    const d=this.doom, cx=W/2, cy=H/2, grip=0.4+d*0.6, maxR=Math.sqrt(W*W+H*H)*0.72;
+    super.tick(); const {ctx,W,H}=this, cx=W/2, cy=H/2, D=Math.hypot(W,H), R0=Math.min(W,H)*0.62;
+    /* dread creeps up only while pressed and recedes slowly on release, so it
+       never reverses within a heartbeat (no per-beat rebound anywhere). */
+    this.dread = this.down ? Math.min(this.dread+0.011,1) : Math.max(this.dread-0.004,0);
+    const d=this.dread; this.crush*=0.86; this.pulse*=0.88;
 
-    ctx.fillStyle=`hsl(6,${42+d*22}%,${12-d*8}%)`; ctx.fillRect(0,0,W,H);
+    /* 1) oppressive base — blood-red bleeding to black as death nears */
+    ctx.fillStyle=`hsl(356,${58-d*36}%,${9-d*7}%)`; ctx.fillRect(0,0,W,H);
 
-    ctx.save(); ctx.lineCap='round';
-    /* Two heavy jaws holding the chest in a vice. They only creep further IN
-       as dread builds; the only per-frame motion is a faint tremor, so they
-       tremble under the grip rather than pumping open and shut. */
-    const tremor=Math.sin(this.t*0.6)*1.4*(0.4+grip*0.6);
-    const jawGap=54-grip*38+tremor;
-    for(const side of [-1,1]){
-      const start=side<0?Math.PI*0.62:-Math.PI*0.38, end=side<0?Math.PI*1.38:Math.PI*0.38;
-      ctx.globalAlpha=0.55+grip*0.4; ctx.strokeStyle=`hsl(${8-d*4},${72+d*16}%,${30+grip*20}%)`; ctx.lineWidth=11+grip*11;
-      ctx.beginPath(); ctx.arc(cx+side*jawGap,cy,50,start,end); ctx.stroke();
+    /* 2) the chest-core: a COMPACT glowing ember at the centre — deliberately
+       small so it never fills the field and the clench stays the hero. Its size
+       is monotone (only ever shrinks, with dread) so it can't read as an outward
+       pulse; the heartbeat is pure light — dims as the grip bites (crush), then
+       kicks (pulse). */
+    const coreR=Math.max(3,(Math.min(W,H)*0.085)*(1-d*0.6));
+    const coreL=Math.max(6,50-d*24-this.crush*24+this.pulse*22);
+    const cg=ctx.createRadialGradient(cx,cy,0,cx,cy,coreR*2.4);
+    cg.addColorStop(0,`hsl(0,92%,${coreL}%)`);
+    cg.addColorStop(0.45,`hsl(0,88%,${Math.max(coreL-24,4)}%)`);
+    cg.addColorStop(1,'hsla(0,80%,10%,0)');
+    ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(cx,cy,coreR*2.4,0,TAU); ctx.fill();
+
+    /* 3) THE VICE — one bold band of muscle. It fades IN near the rim (never
+       slides in from off-screen), sweeps straight to the centre crushing the
+       core, then is gone. A single, one-way inward stroke: an étau closing.
+       Between beats there is only the dark field and the throbbing ember — the
+       grip held, catching its breath, before the next squeeze. */
+    if(this.clench!=null){
+      ctx.save(); ctx.lineCap='round';
+      const prev=this.clench;
+      this.clench-=2.0+d*3.4+Math.max(this.bpm-42,0)*0.05; /* faster as the heart races */
+      const r=this.clench, p=1-r/R0, closing=Math.max(0,Math.min(p,1));
+      const appear=Math.min(p/0.16,1);                 /* materialise near the rim */
+      const vanish=Math.min(Math.max(r,0)/(coreR*1.2),1); /* dissolve into the heart */
+      const a=Math.max(0,appear*vanish);
+      /* the dark grip behind the biting edge — deepens the shadow it drags in */
+      ctx.globalAlpha=a*(0.5+closing*0.4);
+      ctx.strokeStyle=`hsl(0,${46+closing*24}%,${4+closing*4}%)`;
+      ctx.lineWidth=22+closing*30;
+      ctx.beginPath(); ctx.arc(cx,cy,Math.max(r,0.1),0,TAU); ctx.stroke();
+      /* the hot biting ring — drawn additively so it reads as searing light
+         closing in, brighter and heavier the deeper it clenches */
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=a;
+      ctx.strokeStyle=`hsl(${6+closing*6},95%,${44+closing*14}%)`;
+      ctx.lineWidth=4+closing*8;
+      ctx.beginPath(); ctx.arc(cx,cy,Math.max(r,0.1),0,TAU); ctx.stroke();
+      ctx.restore();
+      if(prev>coreR&&r<=coreR){ this.crush=1; this.pulse=1; } /* it just bit the heart */
+      if(r<=2) this.clench=null;                              /* reached it; gone */
     }
 
-    /* Crushed core — small, and only ever smaller as the vice tightens. */
-    const coreR=Math.max(3.5,17-grip*11);
-    ctx.globalAlpha=0.6+grip*0.3; ctx.fillStyle=`hsl(${4-d*4},85%,${30+grip*10}%)`;
-    ctx.beginPath(); ctx.arc(cx,cy,coreR,0,TAU); ctx.fill();
-
-    /* The whole rhythm lives here: nooses spawned at the rim on each beat that
-       ONLY ever collapse inward toward the core, brightening/thickening as
-       they close in — a tightening grip, with no outward stroke anywhere. */
-    this.rings=this.rings.filter(r=>r.r>2&&r.life>0.02);
-    for(const r of this.rings){
-      r.r-=2.2+d*2.6+(this.bpm-26)*0.05; r.life-=0.006;
-      const frac=Math.max(r.r/maxR,0), closing=1-frac;
-      ctx.globalAlpha=r.life*(0.3+closing*0.42+d*0.14);
-      ctx.strokeStyle=`hsl(${6+frac*14},80%,${28+closing*24}%)`; ctx.lineWidth=3.2*r.life*(1.35-frac*0.45);
-      ctx.beginPath(); ctx.arc(cx,cy,Math.max(r.r,0.1),0,TAU); ctx.stroke();
-    }
-    ctx.restore();
-
-    /* Tunnel-vision vignette — darkness narrows toward a point as dread rises
-       (angor animi: the sense of impending death, vision closing in). */
-    const outer=maxR*0.86, inner=outer*Math.max(0.12,0.6-d*0.46);
+    /* 4) tunnel-vision vignette narrowing toward a point — angor animi, the
+       sense of impending death; closes hard as dread builds. */
+    const outer=D*0.52, inner=outer*Math.max(0.05,0.55-d*0.5);
     const vg=ctx.createRadialGradient(cx,cy,inner,cx,cy,outer);
-    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(0,0,0,${0.5+d*0.42})`);
-    ctx.save(); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H); ctx.restore();
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(0,0,0,${0.55+d*0.42})`);
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
   }
 }
 
@@ -1558,7 +1582,7 @@ const REG = {
     {id:'throbbing', label:'Throbbing',       Cls:Throbbing,      accent:'#e53935', hint:'hold to speed up'},
     {id:'cramping',  label:'Cramping',         Cls:Cramping,       accent:'#880e4f', hint:'hold — feel it lock'},
     {id:'dull',      label:'Dull & Constant',  Cls:DullConstant,   accent:'#795548', hint:'never zero'},
-    {id:'angor',     label:'Angor / Angina',   Cls:Angor,          accent:'#7f0f16', hint:'hold — a crushing grip'},
+    {id:'angor',     label:'Angor / Angina',   Cls:Angor,          accent:'#7f0f16', hint:'hold — clamps like a vice'},
   ],
   gb:[
     {id:'burning',   label:'Burning',          Cls:Burning,        accent:'#e65100', hint:'drag to spread'},
