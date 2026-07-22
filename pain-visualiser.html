@@ -159,6 +159,27 @@
     body.has-selection #cards-panel { padding:1.2rem 1rem 2.5rem; cursor:pointer; }
     body.has-selection .card.selected { cursor:default; }
 
+    /* ── PAIN-COLOUR BAR (top of the cards, retracts with them) ─────────── */
+    #paincolor-bar {
+      display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;
+      margin-bottom:1.6rem; padding-bottom:1.2rem;
+      border-bottom:1.5px solid var(--border);
+    }
+    #paincolor-label {
+      font-size:0.68rem; font-weight:700; letter-spacing:0.14em;
+      text-transform:uppercase; color:var(--dim);
+    }
+    #paincolor-bar .st-toggle { flex:0 0 auto; }
+    #paincolor-input {
+      width:40px; height:28px; padding:0; border:1.5px solid var(--border);
+      border-radius:8px; background:var(--input-bg); cursor:pointer; flex-shrink:0;
+    }
+    #paincolor-input.hidden { display:none; }
+    /* Compact once a type is picked; on phones it retracts entirely with the
+       collapsing cards panel (it lives inside #cards-panel). */
+    body.has-selection #paincolor-bar { margin-bottom:1rem; padding-bottom:0.8rem; gap:0.45rem; }
+    body.has-selection #paincolor-label { display:none; }
+
     /* ── HEADER ─────────────────────────────────────────────── */
     header { margin-bottom:2rem; }
     header h1 {
@@ -431,14 +452,6 @@
        auto-inverts correctly in dark mode. */
     .st-section { padding:0.65rem 0.9rem; }
     .st-section + .st-section { border-top:1px solid var(--border); }
-    /* "My pain colour" picker row (revealed when the Custom option is on) */
-    .st-paincolor-row { display:flex; align-items:center; gap:0.55rem; margin-top:0.5rem; cursor:pointer; }
-    .st-paincolor-row.hidden { display:none; }
-    .st-paincolor-row input[type=color] {
-      width:36px; height:26px; padding:0; border:1.5px solid var(--border);
-      border-radius:7px; background:var(--input-bg); cursor:pointer; flex-shrink:0;
-    }
-    .st-paincolor-hint { font-size:0.62rem; color:var(--dim); line-height:1.3; }
     .st-label {
       font-size:0.62rem; font-weight:700; letter-spacing:0.1em;
       text-transform:uppercase; color:var(--dim); margin-bottom:0.4rem;
@@ -633,11 +646,11 @@
                     font-variant-numeric:tabular-nums; flex-shrink:0; }
     .pp-sess-lbl { flex:1; font-size:0.72rem; overflow:hidden;
                    text-overflow:ellipsis; white-space:nowrap; color:var(--subtext); }
-    .pp-sess-load { padding:0.1rem 0.45rem; font-size:0.64rem; font-weight:600;
+    .pp-sess-load, .pp-sess-see { padding:0.1rem 0.45rem; font-size:0.64rem; font-weight:600;
                     border:1px solid var(--border); border-radius:6px;
                     background:var(--input-bg); cursor:pointer; flex-shrink:0; color:var(--subtext);
                     transition:all 0.12s; }
-    .pp-sess-load:hover { border-color:var(--accent-blue); color:var(--accent-blue); }
+    .pp-sess-load:hover, .pp-sess-see:hover { border-color:var(--accent-blue); color:var(--accent-blue); }
     .pp-sess-del { background:none; border:none; cursor:pointer;
                    color:var(--dim); font-size:0.78rem; padding:0; flex-shrink:0;
                    transition:color 0.12s; }
@@ -678,19 +691,25 @@
     }
     .pp-cmp-row button:hover { background:var(--accent-blue-hover); }
 
-    /* ── Session legend (types + intensities of a loaded/compared file) ──── */
-    #session-legend {
-      position:absolute; z-index:24; left:1rem; bottom:1rem;
-      max-width:min(52vw,300px); max-height:46vh; overflow-y:auto;
-      display:flex; flex-direction:column; gap:0.7rem;
+    /* ── Session legend (types + intensities of a loaded/compared file) ────
+       #session-legend is a transparent full-map positioning layer; each
+       .leg-group is its own floating card, anchored per session so that in
+       compare mode each legend sits in its own half, flanking the divider. */
+    #session-legend { position:absolute; inset:0; z-index:24; pointer-events:none; }
+    #session-legend.hidden { display:none; }
+    .leg-group {
+      position:absolute; bottom:1rem; pointer-events:auto;
+      max-width:min(46vw,290px); max-height:46vh; overflow-y:auto;
+      display:flex; flex-direction:column; gap:0.32rem;
       padding:0.6rem 0.75rem; font-size:0.72rem;
       background:var(--overlay); backdrop-filter:blur(10px);
       border:1px solid var(--border); border-radius:12px;
       box-shadow:0 4px 22px var(--shadow-lite);
     }
-    #session-legend.hidden { display:none; }
-    .leg-group { display:flex; flex-direction:column; gap:0.32rem; }
-    .leg-group + .leg-group { border-top:1px solid var(--divider); padding-top:0.6rem; }
+    /* anchors: single view bottom-left; compare view flanks the centre line */
+    .leg-group.leg-left  { left:1rem; }
+    .leg-group.leg-cleft { right:calc(50% + 0.6rem); max-width:min(42vw,280px); }
+    .leg-group.leg-cright{ left:calc(50% + 0.6rem);  max-width:min(42vw,280px); }
     .leg-group-title {
       font-size:0.6rem; font-weight:700; letter-spacing:0.06em;
       text-transform:uppercase; color:var(--dim);
@@ -711,7 +730,10 @@
     .leg-bar > i { display:block; height:100%; border-radius:3px; }
     .leg-num { color:var(--subtext); font-size:0.66rem; font-variant-numeric:tabular-nums; min-width:3.1em; text-align:right; }
     @media (max-width:600px){
-      #session-legend { left:0.6rem; bottom:calc(0.6rem + env(safe-area-inset-bottom,0px)); font-size:0.68rem; max-width:64vw; }
+      .leg-group { font-size:0.68rem; max-height:38vh; }
+      .leg-group.leg-left { left:0.6rem; bottom:calc(0.6rem + env(safe-area-inset-bottom,0px)); max-width:64vw; }
+      .leg-group.leg-cleft { right:calc(50% + 0.3rem); max-width:47vw; }
+      .leg-group.leg-cright{ left:calc(50% + 0.3rem);  max-width:47vw; }
     }
 
     /* ── Compare bar + divider ──────────────────────────────── */
@@ -738,6 +760,32 @@
       position:absolute; left:calc(50% - 1px); top:0; bottom:0;
       width:2px; background:var(--border); pointer-events:none;
       display:none; z-index:24;
+    }
+
+    /* ── View-only ("See") mode ─────────────────────────────────────────── */
+    #view-bar {
+      position:absolute; top:0; left:0; right:0; z-index:25;
+      display:flex; align-items:center; gap:0.6rem;
+      padding:0.45rem 1rem;
+      background:var(--overlay); backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--divider); font-size:0.73rem;
+      box-shadow:0 1px 6px var(--shadow-lite);
+    }
+    #view-bar.hidden { display:none; }
+    #view-label { font-weight:600; color:var(--accent-blue); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #view-exit {
+      margin-left:auto; padding:0.24rem 0.72rem; font-size:0.66rem; font-weight:600;
+      border:1px solid var(--border); border-radius:20px;
+      background:var(--input-bg); cursor:pointer; color:var(--dim); flex-shrink:0;
+      transition:all 0.15s;
+    }
+    #view-exit:hover { color:var(--danger); border-color:var(--danger); background:color-mix(in srgb, var(--danger) 12%, transparent); }
+    /* In view mode the pain menu and paint controls are gone — review only. */
+    body.view-mode #cards-wrapper,
+    body.view-mode #paint-bar,
+    body.view-mode #map-hint { display:none !important; }
+    @media (max-width:600px){
+      #view-bar { padding-top:calc(0.45rem + env(safe-area-inset-top,0px)); }
     }
 
     /* Small always-visible build tag so it's obvious which deploy is
@@ -932,18 +980,6 @@
         </div>
 
         <div class="st-section">
-          <div class="st-label" data-i18n="settingsPainColor">Pain colour</div>
-          <div class="st-toggle" id="paincolor-toggle">
-            <button class="st-opt on" data-paincolor="distinct" data-i18n="painColorDistinct">Distinct</button>
-            <button class="st-opt" data-paincolor="custom" data-i18n="painColorCustom">My colour</button>
-          </div>
-          <label id="paincolor-row" class="st-paincolor-row hidden">
-            <input type="color" id="paincolor-input" value="#d31717">
-            <span class="st-paincolor-hint" data-i18n="painColorHint">Every type takes this colour</span>
-          </label>
-        </div>
-
-        <div class="st-section">
           <div class="st-label" data-i18n="settingsLanguage">Language</div>
           <div class="st-toggle" id="lang-toggle">
             <button class="st-opt on" data-lang-choice="en">English</button>
@@ -962,6 +998,12 @@
       <button id="cmp-exit" data-i18n="cmpExit">Exit compare</button>
     </div>
     <div id="cmp-divider"></div>
+
+    <!-- View-only (See) bar -->
+    <div id="view-bar" class="hidden">
+      <span id="view-label"></span>
+      <button id="view-exit" data-i18n="viewExit">Exit view</button>
+    </div>
 
     <!-- Loaded/compared session summary: pain types + intensities -->
     <div id="session-legend" class="hidden"></div>
@@ -1023,6 +1065,17 @@
         <h1 data-i18n="appTitle">Pain Visualiser</h1>
         <p data-i18n="appSubtitle">Find the animation that best matches your pain — then paint where you feel it on the body.</p>
       </header>
+
+      <!-- Pain colour: distinct default palette, or one colour the patient picks -->
+      <div id="paincolor-bar">
+        <span id="paincolor-label" data-i18n="settingsPainColor">Pain colour</span>
+        <div class="st-toggle" id="paincolor-toggle">
+          <button class="st-opt on" data-paincolor="distinct" data-i18n="painColorDistinct">Distinct</button>
+          <button class="st-opt" data-paincolor="custom" data-i18n="painColorCustom">My colour</button>
+        </div>
+        <input type="color" id="paincolor-input" class="hidden" value="#d31717" aria-label="Pick your pain colour">
+      </div>
+
       <section class="section">
         <div class="sh"><span class="st" data-i18n="sectionRhythmic">Rhythmic</span><span class="sd" data-i18n="sectionRhythmicSub">Cyclic — hold to change rate</span></div>
         <div class="grid" id="ga"></div>
@@ -1120,7 +1173,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v25</div>
+<div id="app-version">v26</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1531,7 +1584,7 @@ window.I18N = {
     patients: 'Patients',
     ptNamePlaceholder: 'Name or ID…', ptNew: '+ New',
     exportBackup: 'Export backup', importBackup: 'Import backup',
-    sessLabelPlaceholder: 'Label (default: today)', save: 'Save', load: 'Load',
+    sessLabelPlaceholder: 'Label (default: today)', save: 'Save', load: 'Load', sessSee: 'See', viewExit: 'Exit view',
     sessionPlaceholder: '— session —',
     selectTwoSessions: 'Select two different sessions.',
     cmpVs: 'vs', cmpExit: 'Exit compare',
@@ -1569,7 +1622,7 @@ window.I18N = {
     patients: 'Patients',
     ptNamePlaceholder: 'Nom ou ID…', ptNew: '+ Nouveau',
     exportBackup: 'Exporter la sauvegarde', importBackup: 'Importer une sauvegarde',
-    sessLabelPlaceholder: "Libellé (par défaut : aujourd'hui)", save: 'Enregistrer', load: 'Charger',
+    sessLabelPlaceholder: "Libellé (par défaut : aujourd'hui)", save: 'Enregistrer', load: 'Charger', sessSee: 'Voir', viewExit: 'Quitter',
     sessionPlaceholder: '— séance —',
     selectTwoSessions: 'Sélectionnez deux séances différentes.',
     cmpVs: 'vs', cmpExit: 'Quitter la comparaison',
@@ -1731,6 +1784,7 @@ function clearSelection(){
   activeTypeId = null;
   document.dispatchEvent(new CustomEvent('paindeselect'));
 }
+window.clearSelection = clearSelection;   /* the module's view/compare modes reuse it */
 
 /* Phone-only: pain-type panel collapses to a slim toggle strip once a
    type is picked (see PHONE media query) — tap to bring the grid back
@@ -1748,6 +1802,7 @@ document.getElementById('cards-toggle').addEventListener('click', ()=>{
 document.getElementById('cards-panel').addEventListener('click', (e)=>{
   if(!document.body.classList.contains('has-selection')) return;
   if(e.target.closest('.card.selected')) return;
+  if(e.target.closest('#paincolor-bar')) return;   /* the colour control isn't a deselect */
   clearSelection();
 });
 
@@ -1824,21 +1879,20 @@ for(const [gridId, types] of Object.entries(REG)){
   }
 }
 
-/* ── Pain colour picker (settings) ─────────────────────────────────────── */
+/* ── Pain colour control (top of the cards) ────────────────────────────── */
 (function initPainColor(){
   const toggle = document.getElementById('paincolor-toggle');
-  const row    = document.getElementById('paincolor-row');
   const input  = document.getElementById('paincolor-input');
 
   function setMode(mode, color){
     if(mode==='custom'){
       customPainColor = color || input.value || '#d31717';
       input.value = customPainColor;
-      row.classList.remove('hidden');
+      input.classList.remove('hidden');
       localStorage.setItem(PAINCOLOR_KEY, customPainColor);
     } else {
       customPainColor = null;
-      row.classList.add('hidden');
+      input.classList.add('hidden');
       localStorage.setItem(PAINCOLOR_KEY, 'distinct');
     }
     toggle.querySelectorAll('.st-opt').forEach(b=>
@@ -1846,8 +1900,12 @@ for(const [gridId, types] of Object.entries(REG)){
     applyPainPalette();
   }
 
+  /* Clicking "My colour" should also pop the OS colour picker straight away. */
   toggle.querySelectorAll('.st-opt').forEach(b=>
-    b.addEventListener('click', ()=>setMode(b.dataset.paincolor)));
+    b.addEventListener('click', ()=>{
+      const mode=b.dataset.paincolor; setMode(mode);
+      if(mode==='custom') input.click();
+    }));
   input.addEventListener('input', ()=>setMode('custom', input.value));
 
   /* restore persisted choice, and apply the initial per-card tint either way */
@@ -2519,7 +2577,10 @@ function showTipAt(x,y){
   }
   hidePinnedTip();
 }
-controls.addEventListener('change', hidePinnedTip);
+/* The pin is cleared by the next pointerdown (a new tap or the start of an
+   orbit), which is exactly "dismiss when the body is moved again" — we do NOT
+   hide on controls' 'change', because finger-jitter damping fires it right
+   after a tap and would kill the pin instantly. */
 
 cvEl.addEventListener('pointerenter', ()=>{ ring.style.display='block'; });
 cvEl.addEventListener('pointerleave', ()=>{
@@ -2533,7 +2594,7 @@ cvEl.addEventListener('pointerdown', e=>{
   hidePinnedTip();               /* a fresh interaction clears the old pin */
   raycaster.setFromCamera(ndcFromEvent(e), camera);
   const hits = raycaster.intersectObjects(bodyParts, false);
-  if(hits.length && (activePain || activeDepth === 'eraser')){
+  if(hits.length && !viewMode && (activePain || activeDepth === 'eraser')){
     bakeStroke();               /* commit previous stroke at current intensity */
     for(const m of bodyParts) m.userData.ctxS.clearRect(0,0,TEX_SIZE,TEX_SIZE);
     strokeDepth = activeDepth;  /* lock depth for this stroke */
@@ -2550,7 +2611,7 @@ cvEl.addEventListener('pointerdown', e=>{
 
 cvEl.addEventListener('pointermove', e=>{
   updateRing(e.clientX, e.clientY);
-  if(tapInfo && !tapInfo.moved && Math.hypot(e.clientX-tapInfo.x, e.clientY-tapInfo.y) > 6) tapInfo.moved=true;
+  if(tapInfo && !tapInfo.moved && Math.hypot(e.clientX-tapInfo.x, e.clientY-tapInfo.y) > 11) tapInfo.moved=true;
 
   if(isPainting){
     raycaster.setFromCamera(ndcFromEvent(e), camera);
@@ -2984,14 +3045,45 @@ function renderLegendGroup(sess, tag, tagColor){
   return wrap;
 }
 
-/* entries: [{sess, tag, color}] — one group per session (two in compare mode) */
+/* entries: [{sess, tag, color}] — one group (single view, anchored bottom-left)
+   or two (compare mode, each anchored into its own half, flanking the divider). */
 function showSessionLegend(entries){
   if(!legendEl) return;
   legendEl.innerHTML='';
-  for(const g of entries) legendEl.appendChild(renderLegendGroup(g.sess, g.tag, g.color));
+  entries.forEach((g,i)=>{
+    const grp = renderLegendGroup(g.sess, g.tag, g.color);
+    grp.classList.add(entries.length>1 ? (i===0?'leg-cleft':'leg-cright') : 'leg-left');
+    legendEl.appendChild(grp);
+  });
   legendEl.classList.remove('hidden');
 }
 function hideSessionLegend(){ legendEl?.classList.add('hidden'); }
+
+/* ── View-only ("See") mode ────────────────────────────────────────────────
+   Review one saved consult: its recap legend + tap-to-inspect, with the pain
+   menu and paint controls removed so nothing can be altered. */
+let viewMode = false;
+function enterViewMode(sess){
+  if(compareActive) exitCompareMode();   /* never stack modes */
+  window.clearSelection?.();         /* drop any active pain → no painting */
+  restoreSession(sess);
+  viewMode = true;
+  document.body.classList.add('view-mode');
+  const bar=document.getElementById('view-bar');
+  document.getElementById('view-label').textContent = sess.label+' · '+sess.date;
+  bar.classList.remove('hidden');
+  showSessionLegend([{sess, tag:sess.label+' · '+sess.date}]);
+  hidePinnedTip();
+}
+function exitViewMode(){
+  if(!viewMode) return;
+  viewMode = false;
+  document.body.classList.remove('view-mode');
+  document.getElementById('view-bar').classList.add('hidden');
+  hideSessionLegend();
+  hidePinnedTip(); tip.style.display='none';
+}
+document.getElementById('view-exit').addEventListener('click', exitViewMode);
 
 /* ══════════════════════════════════════════════════════════════════
    COMPARISON MODE  (scissor — same exact viewpoint on both sides)
@@ -3060,6 +3152,7 @@ function forceReflow(el){
 }
 
 async function enterCompareMode(sA,sB){
+  exitViewMode();                    /* never stack modes */
   const myRequestId = ++compareRequestId;
   restoreSession(sA);
   await buildCompareScene(sB);
@@ -3185,9 +3278,12 @@ async function renderDetailView(){
     row.innerHTML=
       `<span class="pp-sess-date">${sess.date}</span>`+
       `<span class="pp-sess-lbl" title="${safeEsc(sess.label)}">${safeEsc(sess.label)}</span>`+
+      `<button class="pp-sess-see">${window.I18N[window.currentLanguage].sessSee}</button>`+
       `<button class="pp-sess-load">${window.I18N[window.currentLanguage].load}</button>`+
       `<button class="pp-sess-del">&#xd7;</button>`;
-    row.querySelector('.pp-sess-load').addEventListener('click',()=>{restoreSession(sess);showSessionLegend([{sess,tag:sess.label+' · '+sess.date}]);closePtPanel();});
+    /* See = view-only review (recap + tap-inspect, no painting); Load = open it for editing. */
+    row.querySelector('.pp-sess-see').addEventListener('click',()=>{enterViewMode(sess);closePtPanel();});
+    row.querySelector('.pp-sess-load').addEventListener('click',()=>{exitViewMode();restoreSession(sess);closePtPanel();});
     row.querySelector('.pp-sess-del').addEventListener('click',()=>deleteSession(pt.id,sess.id));
     listEl.appendChild(row);
   });
