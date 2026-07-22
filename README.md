@@ -3,6 +3,10 @@
 A language-free, interactive tool for pain communication between patient and clinician.
 The core premise: if an animation IS the pain, no translation is needed.
 
+> A **communication aid** for a patient's own self-report — **not** a diagnostic or
+> screening tool, and **not** a medical device. It records and shows what the patient
+> expresses; the clinician interprets. See [Intended Purpose & Regulatory Positioning](./INTENDED_USE.md).
+
 **[Live demo →](https://kiandolatabadi.github.io/pain-visualiser/)**
 
 ---
@@ -26,10 +30,13 @@ Each pain type is represented as an interactive animation.
 The animation *behaves* the way the pain feels — the patient recognises it instinctively.
 No words required. No translation layer. Universal.
 
-Pain is painted onto a 3D body map (not pinned), enabling:
-- Precise location (dermatome-level)
-- Intensity gradient across a region
-- Multi-session overlay for temporal comparison, side by side
+Pain is painted onto a 3D body map (not pinned), letting the patient show:
+- Location and how the pain spreads across a region (free-form, not a single pin)
+- Self-reported intensity gradient across that region
+- Multiple sessions overlaid for side-by-side comparison over time
+
+The animation and its descriptor are a **shared vocabulary the patient chooses from** —
+a suggested name for what they picked, not a diagnosis. The clinician interprets.
 
 ---
 
@@ -85,9 +92,17 @@ To stop it, close the Terminal window it opens.
 
 ## Scientific Foundation
 
-### Primary Classification: SF-MPQ-2 (Dworkin et al., 2009)
-The Short-Form McGill Pain Questionnaire version 2 is the current gold standard for
-validated pain quality assessment. It groups 22 descriptors into 4 subscales:
+> **What this section is (and isn't).** The instruments and terminology below are the
+> **evidence base for *why* pain *quality* matters** and the **source of the descriptor
+> vocabulary** used to name the animations. They are design provenance — not a claim
+> that Pain Visualiser screens, classifies, or diagnoses anything. The tool records and
+> communicates a patient's own self-report; it does not perform assessment. See
+> [`INTENDED_USE.md`](./INTENDED_USE.md).
+
+### Descriptor vocabulary — SF-MPQ-2 (Dworkin et al., 2009)
+The Short-Form McGill Pain Questionnaire version 2 is a widely used, validated
+instrument for pain *quality*. It groups 22 descriptors into 4 subscales, and is a
+primary source for the animation vocabulary here:
 
 | Subscale | Descriptors |
 |---|---|
@@ -98,17 +113,21 @@ validated pain quality assessment. It groups 22 descriptors into 4 subscales:
 
 Source: Dworkin RH et al. Pain. 2009 Apr;144(1-2):35-42. PMID 19356853
 
-### Neuropathic Screening: painDETECT (Freynhagen et al., 2006)
-7 sensory items that distinguish neuropathic from nociceptive pain:
+### Descriptor source — painDETECT (Freynhagen et al., 2006)
+A validated neuropathic-pain screening *questionnaire*; its 7 sensory items are a
+source for the sensory animations here:
 burning, tingling/prickling, light touch, electric shock, cold/heat, numbness, slight pressure.
-Validated against QST (quantitative sensory testing).
+(painDETECT is the validated screening instrument — Pain Visualiser is not; it only
+borrows the descriptor vocabulary.)
 
-### Neuropathic Screening: DN4 (Bouhassira et al., 2005)
-Burning, painful cold, electric shocks, tingling, pins and needles, numbness, itching.
-Plus 3 clinical signs (allodynia, hypoesthesia to touch, hypoesthesia to pinprick).
+### Descriptor source — DN4 (Bouhassira et al., 2005)
+Another validated neuropathic screening questionnaire, contributing:
+burning, painful cold, electric shocks, tingling, pins and needles, numbness, itching
+(plus 3 clinician-assessed signs — allodynia, hypoesthesia to touch, to pinprick).
 
-### IASP Official Terminology (2020 revised definition)
-Key sensory terms used in this tool:
+### IASP terminology — clinician reference (2020 revised definition)
+Sensory terms that informed the descriptor design and remain useful vocabulary **for
+the clinician** reading a result (not all are offered to patients as cards):
 - **Allodynia**: pain from a stimulus that does not normally cause pain (e.g., light touch)
 - **Hyperalgesia**: exaggerated pain response to a normally painful stimulus
 - **Paresthesia**: abnormal sensation, spontaneous or evoked, not necessarily unpleasant
@@ -142,13 +161,12 @@ Painimation (now "My Painimation" by Expressive Painimation Co.) is:
 
 Our tool differs in:
 - Web-based: runs in any browser, no install, works on hospital tablets
-- Open and free: no paywall, no EHR dependency
-- More comprehensive sensory taxonomy (including non-pain sensations: numbness, allodynia, paresthesia)
+- Self-contained: no EHR dependency, no accounts, no data collection, no backend
+- A broader sensory vocabulary, including non-pain sensations (e.g. numbness, tingling)
 - Animations that RESPOND TO TOUCH in ways that mirror the pain's nature
-  (burning fire follows your finger; pressure rings compress as you hold; cramping twists as you hold)
-- Rhythm meter for rhythmic pains (BPM visualization)
-- Body map painting (not pinning) for dermatome-precise multi-session overlay
-- No accounts, no data collection, no backend
+  (burning fire follows your finger; the angina vice tightens as you hold; cramping twists as you hold)
+- Rhythmic animations that speed up the longer you hold them
+- Free-form body-map painting (not pinning), for multi-session overlay and comparison
 
 The Painimation paper validates the entire concept. The commercial product validates the market.
 We should study their animation choices but not copy them — our interaction model is different.
@@ -225,22 +243,23 @@ The original brief called for bilingual labels. This was revised because:
 
 ### Why paint instead of pin on the body map?
 - Pinning = one point per pain type. Reality: pain covers zones, gradients, patterns.
-- Painting = the patient can show extent, intensity gradient (press harder = more intense)
+- Painting = the patient can show extent and self-reported intensity gradient (press harder = more intense)
 - Multi-session overlay: day 1 red layer, day 3 blue layer — change is immediately visible
-- Dermatome tracing: a clinician can recognize C5 distribution from how a patient paints
+- A clinician can read the *distribution* the patient paints in light of their own anatomical
+  knowledge (the tool draws no conclusion — it just shows what the patient marked)
 
-### Why a rhythm meter?
-- "How often?" is clinically as important as "what kind?"
-- A throbbing at 30bpm vs 120bpm describes very different conditions
-- The rhythm meter externalizes what is otherwise invisible
-- A patient can match the rhythm of the animation to their experience by holding/tapping
+### Why let rhythmic pains speed up as you hold them?
+- "How often?" is as expressive as "what kind?"
+- A throbbing the patient speeds up to a racing beat conveys something different from a slow one
+- It externalizes what is otherwise hard to put into words
+- The patient matches the animation's rhythm to their experience by holding/tapping
 
 ### Why touch-responsive animations?
-- Increases identification accuracy: "I recognize the burning because when I touch it, it spreads"
-- The gesture mirrors the sensation — this creates a body-felt recognition, not just visual
-- Clinically: the manner of interaction itself can be diagnostic
-  (a patient who presses hard on the throbbing card is showing something different
-  from one who barely touches it)
+- Helps the patient recognise the matching animation: "I know it's the burning because when I touch it, it spreads"
+- The gesture mirrors the sensation — a body-felt recognition, not just visual
+- The manner of interaction can be **clinically informative** for the clinician
+  (a patient who presses hard on the throbbing card is expressing something different
+  from one who barely touches it) — informative to the clinician's judgement, not a determination by the tool
 
 ---
 
