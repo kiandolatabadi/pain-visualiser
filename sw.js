@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  * Licensed under the GNU Affero General Public License v3.0 or later; see LICENSE.
  */
-const CACHE_NAME = 'pain-visualiser-v26';
+const CACHE_NAME = 'pain-visualiser-v27';
 
 const PRECACHE_URLS = [
   './pain-visualiser.html',

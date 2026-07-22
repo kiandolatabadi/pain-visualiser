@@ -602,6 +602,15 @@
              color:var(--dim); padding:0 0.15rem; line-height:1; border-radius:50%;
              width:20px; height:20px; display:flex; align-items:center; justify-content:center; }
     .pp-x:hover { color:var(--text); background:var(--hover); }
+    .pp-info { background:none; border:none; cursor:pointer; font-size:0.95rem;
+               color:var(--dim); padding:0 0.15rem; line-height:1; border-radius:50%;
+               width:20px; height:20px; display:flex; align-items:center; justify-content:center; }
+    .pp-info:hover, .pp-info.on { color:var(--accent-blue); background:var(--hover); }
+    #pp-data-note { margin:0 0.75rem 0.55rem; padding:0.5rem 0.6rem;
+                    font-size:0.66rem; line-height:1.5; color:var(--subtext);
+                    background:var(--hover); border-radius:9px;
+                    border:1px solid var(--divider); }
+    #pp-data-note.hidden { display:none; }
     .pp-back { background:none; border:none; cursor:pointer; font-size:0.9rem;
                color:var(--dim); padding:0 0.15rem; line-height:1; border-radius:50%;
                width:20px; height:20px; display:flex; align-items:center; justify-content:center; }
@@ -1021,7 +1030,8 @@
       <!-- VIEW A: patient list -->
       <div id="pp-view-list">
         <div class="pp-head">
-          <span class="pp-title" data-i18n="patients">Patients</span>
+          <span class="pp-title" style="flex:1" data-i18n="patients">Patients</span>
+          <button class="pp-info" id="pp-data-info" aria-label="About your data" title="About your data">&#9432;</button>
           <button class="pp-x" id="pp-close">&#xd7;</button>
         </div>
         <div class="pp-new">
@@ -1033,6 +1043,7 @@
           <button id="pp-import" style="flex:1" data-i18n="importBackup">Import backup</button>
           <input id="pp-import-file" type="file" accept="application/json" style="display:none">
         </div>
+        <div id="pp-data-note" class="hidden" data-i18n="dataNote">All patient data lives only in this browser on this device — nothing is sent to a server and devices don't sync. Clearing your browser data or uninstalling the app erases it. Use Export backup regularly and keep the file safe.</div>
         <div id="pp-list"></div>
       </div>
 
@@ -1180,7 +1191,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v26</div>
+<div id="app-version">v27</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1605,6 +1616,7 @@ window.I18N = {
     backupReadError: 'Could not read this backup file.\n\n({error})',
     confirmImport: 'Import "{file}"?\n\nThis REPLACES all patient data currently stored in this browser ({count} patient(s) in the file). This cannot be undone — export a backup first if unsure.',
     backupImported: 'Backup imported.',
+    dataNote: "All patient data lives only in this browser on this device — nothing is sent to a server and devices don't sync. Clearing your browser data or uninstalling the app erases it. Use Export backup regularly and keep the file safe.",
     painTypes: {
       throbbing:'Throbbing', cramping:'Cramping', dull:'Dull & Constant', angor:'Angor / Angina',
       burning:'Burning', cold:'Cold / Freezing', aching:'Aching', heavy:'Heavy',
@@ -1643,6 +1655,7 @@ window.I18N = {
     backupReadError: 'Impossible de lire ce fichier de sauvegarde.\n\n({error})',
     confirmImport: 'Importer « {file} » ?\n\nCela REMPLACE toutes les données patients actuellement stockées dans ce navigateur ({count} patient(s) dans le fichier). Cette action est irréversible — exportez une sauvegarde au préalable si vous n’êtes pas sûr.',
     backupImported: 'Sauvegarde importée.',
+    dataNote: "Toutes les données patients restent uniquement dans ce navigateur, sur cet appareil — rien n'est envoyé à un serveur et les appareils ne se synchronisent pas. Effacer les données du navigateur ou désinstaller l'application les supprime. Exportez une sauvegarde régulièrement et conservez le fichier en lieu sûr.",
     painTypes: {
       throbbing:'Lancinante', cramping:'Crampe', dull:'Sourde et constante', angor:'Angor',
       burning:'Brûlure', cold:'Froid / Glacial', aching:'Endolorie', heavy:'Lourdeur',
@@ -3358,6 +3371,10 @@ document.getElementById('pt-btn').addEventListener('click',()=>
 );
 document.getElementById('pp-close').addEventListener('click',closePtPanel);
 document.getElementById('pp-close-b').addEventListener('click',closePtPanel);
+document.getElementById('pp-data-info').addEventListener('click',(e)=>{
+  e.currentTarget.classList.toggle('on');
+  document.getElementById('pp-data-note').classList.toggle('hidden');
+});
 document.getElementById('pp-back').addEventListener('click',()=>{
   selectedPatientId=null; renderPatientList(); showListView();
 });
