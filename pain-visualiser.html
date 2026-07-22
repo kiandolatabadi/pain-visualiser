@@ -332,7 +332,8 @@
     .tc + .tc { border-top:1px solid var(--border); }
     .tc-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
     .tc-name { font-size:0.7rem; letter-spacing:0.06em; color:var(--text); text-transform:uppercase; flex:1; }
-    .tc-depth { font-size:0.58rem; letter-spacing:0.1em; color:var(--dim); text-transform:uppercase; }
+    .tc-int { font-size:0.66rem; font-weight:800; font-variant-numeric:tabular-nums; flex-shrink:0; }
+    .tc-depth { font-size:0.58rem; letter-spacing:0.1em; color:var(--dim); text-transform:uppercase; flex-shrink:0; }
 
     /* ── CURSOR RING ────────────────────────────────────────── */
     #cursor-ring {
@@ -762,6 +763,9 @@
       .pp-pt-del, .pp-sess-del { padding:0.4rem; }
 
       #hover-tip, #cursor-ring { display:none !important; }
+      /* …but a tap-pinned inspection tooltip is exactly how touch users read a
+         painted zone, so let that one through. */
+      #hover-tip.pinned { display:block !important; }
     }
 
     /* ══════════════════════════════════════════════════════════════
@@ -1116,7 +1120,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">v24</div>
+<div id="app-version">v25</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -2456,13 +2460,66 @@ function updateRing(screenX, screenY){
 /* ── Raycasting ─────────────────────────────────────────────── */
 const raycaster = new THREE.Raycaster();
 
-function ndcFromEvent(e){
+function ndc(x,y){
   const rect = cvEl.getBoundingClientRect();
-  return new THREE.Vector2(
-    ((e.clientX-rect.left)/rect.width)*2-1,
-    -((e.clientY-rect.top)/rect.height)*2+1
-  );
+  return new THREE.Vector2(((x-rect.left)/rect.width)*2-1, -((y-rect.top)/rect.height)*2+1);
 }
+function ndcFromEvent(e){ return ndc(e.clientX, e.clientY); }
+
+/* ── Paint inspection (hover / tap tooltip) ─────────────────────────────────
+   The tooltip reports what pain is painted under a point — type, intensity and
+   depth — reading the stroke log (restored with the session on load, so this
+   works while reviewing a file, not only while painting). */
+const DEPTH_I18N = {skin:'depthSkin', sub:'depthSubQ', muscular:'depthMuscle', visceral:'depthVisceral', eraser:'depthEraser'};
+function depthLabel(d){ const k=DEPTH_I18N[d]; return (k && window.I18N[window.currentLanguage][k]) || d || ''; }
+
+/* One entry per pain type under the UV point, keeping the worst intensity. */
+function paintInfoAt(partName, uv){
+  const byId=new Map();
+  for(const s of paintLog){
+    if(s.partName!==partName || Math.hypot(s.uvx-uv.x, s.uvy-uv.y) >= s.brushUV*1.5) continue;
+    let e=byId.get(s.painId);
+    if(!e){ e={painId:s.painId, color:s.color, depth:s.depth, intensity:s.intensity??null}; byId.set(s.painId,e); }
+    else { e.color=s.color; if(s.intensity!=null) e.intensity = e.intensity==null?s.intensity:Math.max(e.intensity,s.intensity); }
+  }
+  return [...byId.values()];
+}
+function tipHTML(list){
+  const dict=window.I18N[window.currentLanguage];
+  return list.map(e=>{
+    const name=dict.painTypes[e.painId]||e.painId;
+    const intHTML = e.intensity!=null
+      ? `<span class="tc-int" style="color:${intensityColor(e.intensity)}">${e.intensity}/10</span>` : '';
+    return `<div class="tc"><span class="tc-dot" style="background:${e.color}"></span>`+
+           `<span class="tc-name">${name}</span>${intHTML}`+
+           `<span class="tc-depth">${depthLabel(e.depth)}</span></div>`;
+  }).join('');
+}
+function positionTip(x,y){
+  const tipW=tip.offsetWidth;
+  const left = x+18+tipW>innerWidth ? x-tipW-10 : x+18;
+  tip.style.left = Math.max(4,left)+'px';
+  tip.style.top  = Math.max(4,y-10)+'px';
+}
+
+/* Tap/click a painted zone to pin the tooltip there (mainly for touch, where
+   there is no hover). It clears the moment the body is orbited — see the
+   controls 'change' listener — so pins never pile up and clutter the view. */
+let pinnedTip=false, tapInfo=null;
+function hidePinnedTip(){ if(pinnedTip){ pinnedTip=false; tip.classList.remove('pinned'); tip.style.display='none'; } }
+function showTipAt(x,y){
+  raycaster.setFromCamera(ndc(x,y), camera);
+  const hits=raycaster.intersectObjects(bodyParts,false);
+  if(hits.length && hits[0].uv){
+    const list=paintInfoAt(hits[0].object.userData.name, hits[0].uv);
+    if(list.length){
+      tip.innerHTML=tipHTML(list); tip.classList.add('pinned');
+      tip.style.display='block'; positionTip(x,y); pinnedTip=true; return;
+    }
+  }
+  hidePinnedTip();
+}
+controls.addEventListener('change', hidePinnedTip);
 
 cvEl.addEventListener('pointerenter', ()=>{ ring.style.display='block'; });
 cvEl.addEventListener('pointerleave', ()=>{
@@ -2473,6 +2530,7 @@ cvEl.addEventListener('pointerleave', ()=>{
 cvEl.addEventListener('pointerdown', e=>{
   if(compareActive){ return; }
   if(e.button !== 0){ updateRing(e.clientX, e.clientY); return; }
+  hidePinnedTip();               /* a fresh interaction clears the old pin */
   raycaster.setFromCamera(ndcFromEvent(e), camera);
   const hits = raycaster.intersectObjects(bodyParts, false);
   if(hits.length && (activePain || activeDepth === 'eraser')){
@@ -2481,12 +2539,18 @@ cvEl.addEventListener('pointerdown', e=>{
     strokeDepth = activeDepth;  /* lock depth for this stroke */
     controls.enabled=false; isPainting=true;
     paintAt(hits[0].object, hits[0]);
+    tapInfo=null;
+  } else {
+    /* Not painting: this may be a tap to inspect (resolved on pointerup if the
+       finger/mouse didn't travel — a drag is an orbit, not a tap). */
+    tapInfo = { x:e.clientX, y:e.clientY, moved:false };
   }
   updateRing(e.clientX, e.clientY);
 });
 
 cvEl.addEventListener('pointermove', e=>{
   updateRing(e.clientX, e.clientY);
+  if(tapInfo && !tapInfo.moved && Math.hypot(e.clientX-tapInfo.x, e.clientY-tapInfo.y) > 6) tapInfo.moved=true;
 
   if(isPainting){
     raycaster.setFromCamera(ndcFromEvent(e), camera);
@@ -2495,40 +2559,27 @@ cvEl.addEventListener('pointermove', e=>{
     return;
   }
 
-  /* Hover tooltip */
+  /* Hover tooltip (desktop): report type + intensity under the cursor. */
   raycaster.setFromCamera(ndcFromEvent(e), camera);
   const hits = raycaster.intersectObjects(bodyParts, false);
-  if(hits.length){
-    const mesh = hits[0].object;
-    const uv   = hits[0].uv;
-    if(uv){
-      const partName = mesh.userData.name;
-      const nearby   = paintLog.filter(s =>
-        s.partName === partName &&
-        Math.hypot(s.uvx-uv.x, s.uvy-uv.y) < s.brushUV * 1.5
-      );
-      if(nearby.length){
-        const seen = new Map();
-        for(const s of nearby) if(!seen.has(s.painId)) seen.set(s.painId, s);
-        tip.innerHTML = [...seen.values()].map(s=>
-          `<div class="tc"><span class="tc-dot" style="background:${s.color}"></span>
-           <span class="tc-name">${s.label}</span>
-           <span class="tc-depth">${s.depth}</span></div>`
-        ).join('');
-        tip.style.display='block';
-        const tipW = tip.offsetWidth;
-        const left = e.clientX+18+tipW > innerWidth ? e.clientX-tipW-10 : e.clientX+18;
-        tip.style.left = left+'px'; tip.style.top = (e.clientY-10)+'px';
-        return;
-      }
+  if(hits.length && hits[0].uv){
+    const list = paintInfoAt(hits[0].object.userData.name, hits[0].uv);
+    if(list.length){
+      tip.classList.remove('pinned'); pinnedTip=false;
+      tip.innerHTML = tipHTML(list);
+      tip.style.display='block';
+      positionTip(e.clientX, e.clientY);
+      return;
     }
   }
-  tip.style.display='none';
+  if(!pinnedTip) tip.style.display='none';
 });
 
 cvEl.addEventListener('pointerup', ()=>{
   if(isPainting) bakeStroke();   /* commit stroke at final intensity */
   isPainting=false; controls.enabled=true;
+  if(tapInfo && !tapInfo.moved) showTipAt(tapInfo.x, tapInfo.y);   /* tap = inspect */
+  tapInfo=null;
 });
 
 /* ── Pain selection events ──────────────────────────────────── */
@@ -2695,6 +2746,7 @@ document.getElementById('clear-btn').addEventListener('click',()=>{
   }
   paintLog.length=0;
   hideSessionLegend();
+  hidePinnedTip(); tip.style.display='none';
 });
 
 /* ── Render loop ─────────────────────────────────────────────── */
@@ -2824,9 +2876,9 @@ function safeEsc(s){ const d=document.createElement('div'); d.textContent=s; ret
    intensity range it was painted at, and the depths used — so a saved session
    carries a human-readable summary of what it contains (see showSessionLegend,
    which surfaces it when a file is loaded or compared). */
-function summarizePaint(){
+function summarizePaint(log=paintLog){
   const byId=new Map();
-  for(const s of paintLog){
+  for(const s of log){
     let e=byId.get(s.painId);
     if(!e){ e={painId:s.painId, label:s.label, color:s.color, min:s.intensity??null, max:s.intensity??null, depths:new Set(), count:0}; byId.set(s.painId,e); }
     e.color=s.color;                       /* most-recent colour wins */
@@ -2837,10 +2889,17 @@ function summarizePaint(){
   return [...byId.values()].map(e=>({...e, depths:[...e.depths]})).sort((a,b)=>b.count-a.count);
 }
 
+/* Per-stroke log packed to compact tuples so a saved session can drive hover /
+   tap inspection (type + intensity at a point) when it is later reviewed —
+   [partName, uvx, uvy, brushUV, painId, colour, depth, intensity]. */
+const r4=n=>Math.round(n*1e4)/1e4;
+function packStrokes(){ return paintLog.map(s=>[s.partName,r4(s.uvx),r4(s.uvy),r4(s.brushUV),s.painId,s.color,s.depth,s.intensity]); }
+function unpackStrokes(arr){ return (arr||[]).map(a=>({partName:a[0],uvx:a[1],uvy:a[2],brushUV:a[3],painId:a[4],label:a[4],color:a[5],depth:a[6],intensity:a[7]})); }
+
 function captureSession(label){
   const tex={};
   for(const m of bodyParts) tex[m.userData.name]=m.userData.cvD.toDataURL('image/jpeg',0.65);
-  return { id:genId(), date:todayStr(), label:label||todayStr(), gender:activeGender, textures:tex, summary:summarizePaint() };
+  return { id:genId(), date:todayStr(), label:label||todayStr(), gender:activeGender, textures:tex, summary:summarizePaint(), strokes:packStrokes() };
 }
 
 /* Loads a data-URL image but never hangs or throws — mobile devices can
@@ -2865,6 +2924,10 @@ function restoreSession(sess){
     switchGender(sess.gender);
     document.querySelectorAll('.gtog').forEach(b=>b.classList.toggle('on',b.dataset.g===sess.gender));
   }
+  /* Restore the stroke log too (if the session carries one) so hovering /
+     tapping the loaded body reports the pain type + intensity at each point. */
+  paintLog.length=0;
+  if(sess.strokes) paintLog.push(...unpackStrokes(sess.strokes));
   for(const mesh of modelData[sess.gender].parts){
     const url=sess.textures[mesh.userData.name]; if(!url) continue;
     loadImage(url).then(img=>{
@@ -2894,7 +2957,9 @@ function renderLegendGroup(sess, tag, tagColor){
     t.textContent = tag;
     wrap.appendChild(t);
   }
-  const sum = sess.summary;
+  /* Prefer the stored summary; otherwise rebuild it from the stored strokes. */
+  const sum = (sess.summary && sess.summary.length) ? sess.summary
+            : (sess.strokes ? summarizePaint(unpackStrokes(sess.strokes)) : null);
   if(!sum || !sum.length){
     const empty=document.createElement('div'); empty.className='leg-empty';
     empty.textContent = dict.legendEmpty; wrap.appendChild(empty); return wrap;
