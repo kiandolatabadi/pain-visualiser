@@ -1,10 +1,9 @@
 /*
  * Pain Visualiser service worker.
- * Copyright © 2026 Kian Dolatabadi.
- * SPDX-License-Identifier: AGPL-3.0-or-later
- * Licensed under the GNU Affero General Public License v3.0 or later; see LICENSE.
+ * Copyright © 2026 Kian Dolatabadi. All rights reserved.
+ * Proprietary software — evaluation use only. See LICENSE and TERMS.md.
  */
-const CACHE_NAME = 'pain-visualiser-v27';
+const CACHE_NAME = 'pain-visualiser-v1.0';
 
 const PRECACHE_URLS = [
   './pain-visualiser.html',

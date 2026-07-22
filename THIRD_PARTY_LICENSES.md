@@ -1,7 +1,8 @@
 # Third-party licences
 
-Pain Visualiser itself is licensed under **AGPL-3.0** (see [`LICENSE`](./LICENSE)).
-It bundles the following third-party components, which keep their own licences.
+Pain Visualiser's own code is **proprietary — all rights reserved** (see
+[`LICENSE`](./LICENSE)). It bundles the following third-party components, which
+keep their own licences.
 
 ---
 

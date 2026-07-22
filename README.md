@@ -265,7 +265,8 @@ The original brief called for bilingual labels. This was revised because:
 - `male_body.glb`, `low_poly_female_body__teeth__tongue_lp.glb` — 3D body models (see Credits)
 - `manifest.json`, `sw.js`, `icons/` — PWA install + offline support
 - `Launch Pain Visualiser.command` — double-click launcher for local use on macOS
-- `LICENSE` — GNU AGPL-3.0, the licence for this project's code
+- `LICENSE` — proprietary licence (evaluation use only) for this project's code
+- `TERMS.md` — terms of use
 - `THIRD_PARTY_LICENSES.md` — licences for bundled Three.js (MIT) and the 3D models (CC-BY-4.0)
 - `README.md` — this file
 
@@ -285,15 +286,18 @@ requires attribution:
 
 ## Licence
 
-Copyright © 2026 Kian Dolatabadi.
+Copyright © 2026 Kian Dolatabadi. **All rights reserved.**
 
-This project's code is licensed under the **GNU Affero General Public License v3.0** — see
-[`LICENSE`](./LICENSE). In short: you are free to use, study, modify, and share it, but any modified
-version you distribute **or run as a network service** must also be released under the AGPL-3.0 with
-its source made available. This keeps the tool, and anything built on it, open.
+This project's own code is **proprietary** and made available for **evaluation and personal,
+non-commercial use only** — see [`LICENSE`](./LICENSE) and the [Terms of Use](./TERMS.md). It is not
+open-source: you may not copy, redistribute, host, resell, or create derivative works from it without
+prior written permission.
 
 Bundled third-party components keep their own licences — Three.js (MIT) and the 3D body models
-(CC-BY-4.0). See [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md).
+(CC-BY-4.0). See [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md). Those licences are unaffected
+by the proprietary licence on this project's code.
+
+> Not a medical device — an experimental communication aid only. See the Terms of Use.
 
 ---
 
