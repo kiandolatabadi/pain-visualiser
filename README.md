@@ -267,6 +267,7 @@ The original brief called for bilingual labels. This was revised because:
 - `Launch Pain Visualiser.command` — double-click launcher for local use on macOS
 - `LICENSE` — proprietary licence (evaluation use only) for this project's code
 - `TERMS.md` — terms of use
+- `INTENDED_USE.md` — intended purpose & regulatory positioning (non-diagnostic communication aid)
 - `THIRD_PARTY_LICENSES.md` — licences for bundled Three.js (MIT) and the 3D models (CC-BY-4.0)
 - `README.md` — this file
 
@@ -297,7 +298,8 @@ Bundled third-party components keep their own licences — Three.js (MIT) and th
 (CC-BY-4.0). See [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md). Those licences are unaffected
 by the proprietary licence on this project's code.
 
-> Not a medical device — an experimental communication aid only. See the Terms of Use.
+> Not a medical device — an experimental communication aid only. See the
+> [Terms of Use](./TERMS.md) and the [Intended Purpose & Regulatory Positioning](./INTENDED_USE.md).
 
 ---
 
