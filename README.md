@@ -35,12 +35,21 @@ Pain is painted onto a 3D body map (not pinned), enabling:
 
 ## What's implemented
 
-- **16 touch-responsive pain-type animations**, grouped by clinical pattern (rhythmic, continuous,
+- **15 touch-responsive pain-type animations**, grouped by clinical pattern (rhythmic, continuous,
   intermittent, sensory/non-painful) — see [Descriptor Set](#descriptor-set--design-rationale) below
-- **3D body map** (male and female models) that the patient paints directly, with brush intensity/depth
+- **3D body map** (male and female models) that the patient paints directly, with brush size,
+  intensity (0–10), and four depths — skin, sub-cutaneous, muscle, **deep**
+- **Pain colour**, chosen right above the cards: a *Distinct* palette (every type a maximally
+  distinguishable colour, animation matching its paint) or *My colour* — the patient picks one shade
+  and every animation + its paint adopts it ("my pain is this colour")
 - **Patient records**: create a patient, save a painted session, reopen it later
+- **See (review-only) mode**: open one saved consult with painting disabled — its **recap** (each pain
+  type with the intensity range it was painted at) plus tap-a-zone inspection
 - **Session comparison**: load two sessions from the same patient side by side on a split view, each
-  rendered in its own independent 3D view (not a shared canvas) for reliable cross-browser rendering
+  rendered in its own independent 3D view (not a shared canvas), with a per-side recap legend so a
+  change (e.g. angina 8/10 → 3/10) reads at a glance
+- **Inspect what's painted**: hover (desktop) or tap (touch) any zone to see the pain type(s),
+  intensity and depth recorded there
 - **Backup / restore**: export the full patient database to a JSON file, import it back on any device
 - **Settings panel**: light/dark theme and language (English/French)
 - **Fully responsive, touch-first UI**: works on phone, tablet, and desktop — pinch-to-zoom, a
@@ -57,7 +66,7 @@ Patients panel to move or back up data.
 ## Tech stack
 
 - Vanilla JS, no build step, no framework
-- [Three.js](https://threejs.org) (r0.157, vendored locally in `vendor/`) for the 3D body map and
+- [Three.js](https://threejs.org) (r157, vendored locally in `vendor/`) for the 3D body map and
   painting/raycasting
 - IndexedDB for local, offline patient/session storage
 - A service worker (`sw.js`) + `manifest.json` for PWA installability and offline caching
@@ -149,14 +158,14 @@ We should study their animation choices but not copy them — our interaction mo
 ## Descriptor Set & Design Rationale
 
 ### GROUP A — RHYTHMIC
-*Pains with a cycle. Has a rhythm meter (ECG-style strip showing beat pattern).*
-*Hold the card to speed up the rhythm. Shows approximate rate.*
+*Pains with a cycle. Hold the card to speed up the rhythm (the beat rate rises while held).*
 
 | Descriptor | Clinical basis | Visual metaphor | Interaction |
 |---|---|---|---|
 | Throbbing | SF-MPQ-2 continuous; vascular/pulsatile pain | Heartbeat rings expanding from center | Hold to accelerate pulse |
 | Cramping | SF-MPQ-2 continuous; muscle/visceral | Spokes contracting inward then releasing | Hold to tighten contraction |
-| Gnawing | SF-MPQ-2 continuous; persistent dull erosion | Slow grinding particles at center | Hold to intensify erosion |
+| Dull & Constant | SF-MPQ-2 continuous; persistent low-grade ache | Slow, ever-present low-contrast field — never zero | Always present |
+| Angor / Angina | Cardiac ischaemic pain; *angor animi* | A vice of dark muscle clenches inward onto the chest-core, the field darkens and vision tunnels toward black — a crushing grip with a sense of impending death | Hold — the grip tightens |
 
 ### GROUP B — CONTINUOUS
 *Pain that is always present. Idle animation is always vivid. Cursor/touch modifies it.*
@@ -190,9 +199,18 @@ directionally along a branching nerve-like path.
 | Descriptor | Clinical basis | Visual metaphor | Interaction |
 |---|---|---|---|
 | Tingling / Pins & Needles | SF-MPQ-2 neuropathic; painDETECT; DN4 | Dense electric sparkle field | Move cursor to densify |
-| Numbness | SF-MPQ-2 neuropathic; painDETECT; DN4 | Signal dropout — canvas fades to grey static | Touch spreads numbness |
+| Numbness | SF-MPQ-2 neuropathic; painDETECT; DN4 | Signal dropout — a muted, near-dead field | Touch spreads numbness |
 | Itching | SF-MPQ-2 neuropathic; DN4 | Surface-crawling particles, compulsive drift | Touch concentrates itch |
-| Allodynia | IASP terminology; DN4 clinical sign | Gentle touch → immediate pain cascade | Any touch triggers response |
+
+### Descriptors deliberately removed
+
+Earlier iterations carried a few descriptors that were dropped to keep the set patient-facing and
+non-redundant:
+
+- **Coup de Poignard** — a duplicate of *Stabbing*; *Sharp / Piercing* already covers it.
+- **Allodynia**, **Hypoesthesia**, **Anesthesia** — clinical terms, not sensations a patient would
+  self-select. They remain useful vocabulary for the *clinician* reading a result (see the IASP
+  terminology above), but they are not offered as cards to paint with.
 
 ---
 
@@ -247,6 +265,8 @@ The original brief called for bilingual labels. This was revised because:
 - `male_body.glb`, `low_poly_female_body__teeth__tongue_lp.glb` — 3D body models (see Credits)
 - `manifest.json`, `sw.js`, `icons/` — PWA install + offline support
 - `Launch Pain Visualiser.command` — double-click launcher for local use on macOS
+- `LICENSE` — GNU AGPL-3.0, the licence for this project's code
+- `THIRD_PARTY_LICENSES.md` — licences for bundled Three.js (MIT) and the 3D models (CC-BY-4.0)
 - `README.md` — this file
 
 ---
@@ -260,6 +280,20 @@ requires attribution:
   [source](https://sketchfab.com/3d-models/male-body-15a422001834483c9750ce6117d59cc1)
 - **Low poly female body | Teeth + tongue lp** by [mezuna](https://sketchfab.com/mezuna) —
   [source](https://sketchfab.com/3d-models/low-poly-female-body-teeth-tongue-lp-16201ebf4bca4395b3fe1931cc30c801)
+
+---
+
+## Licence
+
+Copyright © 2026 Kian Dolatabadi.
+
+This project's code is licensed under the **GNU Affero General Public License v3.0** — see
+[`LICENSE`](./LICENSE). In short: you are free to use, study, modify, and share it, but any modified
+version you distribute **or run as a network service** must also be released under the AGPL-3.0 with
+its source made available. This keeps the tool, and anything built on it, open.
+
+Bundled third-party components keep their own licences — Three.js (MIT) and the 3D body models
+(CC-BY-4.0). See [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md).
 
 ---
 
