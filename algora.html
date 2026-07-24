@@ -1191,7 +1191,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">© 2026 Kian Dolatabadi · v1.0</div>
+<div id="app-version">© 2026 Kian Dolatabadi · v1.1</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1862,7 +1862,7 @@ for(const [gridId, types] of Object.entries(REG)){
     let fx;
     try{ fx = new type.Cls(canvas); }
     catch(e){ logErr(`INIT ${type.id}`,e); card.classList.add('err'); continue; }
-    allFx.push({fx,card,canvas,type,id:type.id});
+    allFx.push({fx,card,canvas,type,id:type.id,visible:true});
 
     const toCV=(e,touch=false)=>{ const rect=canvas.getBoundingClientRect(),sx=canvas.width/rect.width,sy=canvas.height/rect.height,s=touch?e.touches[0]:e; return {x:(s.clientX-rect.left)*sx,y:(s.clientY-rect.top)*sy}; };
     canvas.addEventListener('mouseenter',  ()=>card.classList.add('active'));
@@ -1934,11 +1934,31 @@ for(const [gridId, types] of Object.entries(REG)){
   else applyPainPalette();
 })();
 
+/* ── Card-preview animation gating ─────────────────────────────────────
+   Each of the 15 pain-type cards runs its own canvas animation. Ticking
+   all of them every frame — even ones scrolled out of the list, in a
+   collapsed panel, or dimmed behind an active selection — was the single
+   biggest CPU drain on low-power machines ("all the animations going at
+   once"). We now tick a card only when it is actually on-screen and not
+   faded, and freeze everything while the tab is hidden. An
+   IntersectionObserver flips each entry's `visible` flag; both off-screen
+   cards and display:none panels report not-intersecting, so they stop for
+   free. Frozen previews just pause their `t` counter and resume smoothly. */
+const cardObserver = new IntersectionObserver((entries)=>{
+  for(const ent of entries){
+    const rec = allFx.find(e=>e.card===ent.target);
+    if(rec) rec.visible = ent.isIntersecting;
+  }
+}, { rootMargin:'120px', threshold:0 });
+for(const e of allFx) cardObserver.observe(e.card);
+
 (function loop(){
   requestAnimationFrame(loop);
-  for(const {fx,card,id} of allFx){
-    try{ fx.tick(); }
-    catch(e){ logErr(`TICK ${id}`,e); card.classList.add('err'); }
+  if(document.hidden) return;
+  for(const e of allFx){
+    if(!e.visible || e.card.classList.contains('faded')) continue;
+    try{ e.fx.tick(); }
+    catch(err){ logErr(`TICK ${e.id}`,err); e.card.classList.add('err'); }
   }
 })();
 </script>
@@ -2171,6 +2191,7 @@ function setupModel(gltf, gender){
 
   model.visible = (gender === activeGender);
   scene.add(model);
+  invalidate();          /* a model just loaded into the scene → draw it */
 
   if(gender === activeGender) bodyParts.push(...entry.parts);
   console.log('[PV]', gender, 'ready —', meshes.length, 'meshes');
@@ -2192,6 +2213,7 @@ function switchGender(gender){
     mesh.userData._strokeActive = false;
     tex.needsUpdate = true;
   }
+  invalidate();          /* gender swap cleared every texture → redraw */
 }
 
 /* Load both models in parallel */
@@ -2464,6 +2486,7 @@ function rebuildDisplay(mesh){
     applyPattern(ctxD, cvS, strokeDepth, ia, strokeBr);
   }
   tex.needsUpdate = true;
+  invalidate();          /* paint changed the texture → redraw the body */
 }
 
 function bakeStroke(){
@@ -2825,6 +2848,7 @@ document.getElementById('clear-btn').addEventListener('click',()=>{
     mesh.userData._strokeActive = false;
     tex.needsUpdate=true;
   }
+  invalidate();          /* cleared the body → redraw the blank textures */
   paintLog.length=0;
   hideSessionLegend();
   hidePinnedTip(); tip.style.display='none';
@@ -2836,6 +2860,22 @@ let compareSceneB = null;
 let lastSizeA = [0, 0];
 let lastSizeB = [0, 0];
 resize();
+
+/* ── On-demand rendering ───────────────────────────────────────────────
+   The 3D scene is static unless the user interacts — there is no idle
+   animation — so redrawing the (1.5 MB skinned) body every frame was a
+   constant GPU cost for nothing, a main reason the app crawled on
+   low-power machines. We now render only on frames where something
+   actually changed. invalidate() marks the next frame dirty; it is called
+   wherever the scene, camera or a paint texture mutates. OrbitControls'
+   'change' event covers ALL camera motion — orbit, pan, damping-settle and
+   our manual cursor-dolly, which all funnel through controls.update(). The
+   rAF loop still runs every frame so controls.update() can advance the
+   damping inertia; only the expensive render() calls are gated. */
+let needsRender = true;
+function invalidate(){ needsRender = true; }
+controls.addEventListener('change', invalidate);
+
 (function animate(){
   requestAnimationFrame(animate);
   controls.update();
@@ -2853,8 +2893,8 @@ resize();
     renderer.setSize(wA, hA, false);
     camera.aspect = wA/hA;
     camera.updateProjectionMatrix();
+    needsRender = true;
   }
-  renderer.render(scene, camera);
   if(compareActive && compareSceneB){
     /* Recompute size/aspect from the canvas's actual current CSS size
        every frame instead of trusting a one-time measurement from when
@@ -2870,7 +2910,13 @@ resize();
       rendererB.setSize(wB, hB, false);
       cameraB.aspect = wB/hB;
       cameraB.updateProjectionMatrix();
+      needsRender = true;
     }
+  }
+  if(!needsRender) return;
+  needsRender = false;
+  renderer.render(scene, camera);
+  if(compareActive && compareSceneB){
     cameraB.position.copy(camera.position);
     cameraB.quaternion.copy(camera.quaternion);
     rendererB.render(compareSceneB, cameraB);
@@ -3178,6 +3224,7 @@ async function enterCompareMode(sA,sB){
   await buildCompareScene(sB);
   if(myRequestId !== compareRequestId) return; /* superseded — bail out */
   compareActive=true;
+  invalidate();          /* second viewport just went live → render it */
   document.body.classList.add('compare-active');
   document.getElementById('cmp-bar').classList.remove('hidden');
   document.getElementById('cmp-divider').style.display='block';
@@ -3207,6 +3254,7 @@ function exitCompareMode(){
      check at the top of enterCompareMode). */
   compareRequestId++;
   compareActive=false;
+  invalidate();          /* layout reverts to one viewport → redraw canvas A */
   /* All UI/state restoration happens first, unconditionally, before the
      WebGL disposal below — previously disposeCompareScene() ran first,
      so if it ever threw (real-device WebGL/driver edge case, seen only
