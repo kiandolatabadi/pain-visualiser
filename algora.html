@@ -824,6 +824,26 @@
       #app-version { top:auto; bottom:calc(3.3rem + env(safe-area-inset-bottom,0px)); right:0.4rem; }
     }
 
+    /* Review modes (view / compare) have almost no other UI, so make Exit
+       unmistakable: the build tag used to render (z-index 999) right on top of
+       the exit button in the corner — hide it in these modes — and give the
+       button a bigger footprint plus a gentle attention pulse so it's the
+       obvious thing to press. */
+    body.view-mode #app-version,
+    body.compare-active #app-version { display:none; }
+    #cmp-exit, #view-exit {
+      padding:0.55rem 1.3rem; font-size:0.92rem;
+      animation:exit-attention 1.9s ease-in-out infinite;
+    }
+    #cmp-exit::before, #view-exit::before { font-size:0.92rem; }
+    @keyframes exit-attention {
+      0%,100% { box-shadow:0 2px 9px  color-mix(in srgb, var(--danger) 42%, transparent); }
+      50%     { box-shadow:0 3px 18px color-mix(in srgb, var(--danger) 78%, transparent); }
+    }
+    @media (prefers-reduced-motion: reduce){
+      #cmp-exit, #view-exit { animation:none; }
+    }
+
     /* ══════════════════════════════════════════════════════════════
        RESPONSIVE — TOUCH (any touch-primary device, any width)
        ══════════════════════════════════════════════════════════════ */
@@ -1200,7 +1220,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">© 2026 Kian Dolatabadi · v1.2</div>
+<div id="app-version">© 2026 Kian Dolatabadi · v1.3</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -2481,15 +2501,31 @@ function applyPattern(targetCtx, shapeSrc, depth, alpha, br){
   targetCtx.restore();
 }
 
+/* Composite the current stroke (cvS, an opaque coverage mask) onto a target
+   context as a REPLACE within its covered region: punch those pixels back to
+   bare skin, then lay the stroke colour at the intensity alpha. Used identically
+   for the live preview (cvD) and the commit (base cv) so intensity is an absolute
+   ceiling — re-painting an area, in the same stroke OR a later one, settles at
+   exactly that intensity instead of compounding. Trade-off: where a stroke
+   overlaps a DIFFERENT existing pain type, the new one wins in the overlap
+   (last-painted) rather than the two blending. */
+function stampStroke(targetCtx, cvS, ia){
+  targetCtx.save();
+  targetCtx.globalCompositeOperation = 'destination-out';
+  targetCtx.drawImage(cvS, 0, 0);                                   /* clear covered pixels   */
+  targetCtx.globalCompositeOperation = 'destination-over';
+  targetCtx.fillStyle = SKIN_STR; targetCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);  /* skin behind */
+  targetCtx.globalCompositeOperation = 'source-over';
+  targetCtx.globalAlpha = ia; targetCtx.drawImage(cvS, 0, 0);       /* paint at intensity     */
+  targetCtx.restore();
+  applyPattern(targetCtx, cvS, strokeDepth, ia, strokeBr);
+}
+
 function rebuildDisplay(mesh){
   const {cv, cvS, cvD, ctxD, tex, _strokeActive} = mesh.userData;
   ctxD.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
   ctxD.drawImage(cv, 0, 0);
-  if(_strokeActive){
-    const ia = intensity / 10;
-    ctxD.save(); ctxD.globalAlpha = ia; ctxD.drawImage(cvS, 0, 0); ctxD.restore();
-    applyPattern(ctxD, cvS, strokeDepth, ia, strokeBr);
-  }
+  if(_strokeActive) stampStroke(ctxD, cvS, intensity / 10);
   tex.needsUpdate = true;
   invalidate();          /* paint changed the texture → redraw the body */
 }
@@ -2497,10 +2533,8 @@ function rebuildDisplay(mesh){
 function bakeStroke(){
   for(const mesh of bodyParts){
     if(!mesh.userData._strokeActive) continue;
-    const {cv, ctx, cvS, ctxS} = mesh.userData;
-    const ia = intensity / 10;
-    ctx.save(); ctx.globalAlpha = ia; ctx.drawImage(cvS, 0, 0); ctx.restore();
-    applyPattern(ctx, cvS, strokeDepth, ia, strokeBr);  /* bake pattern into base too */
+    const {ctx, cvS, ctxS} = mesh.userData;
+    stampStroke(ctx, cvS, intensity / 10);   /* replace-commit into the base (see stampStroke) */
     ctxS.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
     mesh.userData._strokeActive = false;
     rebuildDisplay(mesh);

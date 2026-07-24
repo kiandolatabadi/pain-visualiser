@@ -149,6 +149,28 @@ and `rebuildDisplay()` compositing the live stroke.
 
 ---
 
+## Known bugs (fix when convenient)
+
+### Brush paints different real-world sizes on different body parts
+
+**Status:** open (user-reported, low priority). **Symptom:** with the same brush
+setting, the painted blob covers a larger/smaller area of the body depending on which
+mesh/polygon you paint on.
+
+**Cause.** The brush radius `br` is in **texture pixels** (constant), but each mesh is
+UV-unwrapped at a **different texel-to-world density**, so a fixed texel radius maps to
+different physical sizes per part.
+
+**Exact fix.** Normalise the brush by per-part UV density:
+- In `setupModel`, for each mesh compute a density factor from the geometry — e.g.
+  `sqrt(sum(worldTriArea) / sum(uvTriArea))` over its triangles (positions + uv
+  attributes) — and store it on `userData` (e.g. `uvDensity`). Normalise so the mean
+  part = 1 (or pick a reference part).
+- In `paintAt`, scale the radius: `br = baseBr * part.uvDensity` (still clamped). Keep
+  `strokeBr`/`brushUV` in sync so pattern scale and the saved stroke log match.
+- Note: this corrects **between-part** differences; within-part UV stretch remains, but
+  that's the dominant visible issue. Verify in-browser (can't be tested headlessly).
+
 ## Also-noted (not in the committed four, but worth doing)
 
 - **Compress the body GLBs** (Draco/meshopt) — biggest remaining startup/memory win.

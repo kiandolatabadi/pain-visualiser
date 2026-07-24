@@ -81,6 +81,15 @@ reply so they know what to look at.
 
 ## Change log (newest first)
 
+- **v1.3** — follow-up on the v1.2 fixes. (1) **Cross-stroke paint buildup fixed**:
+  strokes now commit via `stampStroke()` — a REPLACE within the covered region (punch to
+  skin, then paint at intensity), used for both live preview (`rebuildDisplay`) and commit
+  (`bakeStroke`). Intensity is now an absolute ceiling across separate strokes too, not
+  just within one. Trade-off: overlapping a different pain type is last-wins, not blended.
+  (2) **Exit button**: hide the `#app-version` build tag in view/compare modes (it was
+  rendering on top of the button), enlarge the button, add a reduced-motion-aware attention
+  pulse. Documented the "brush size varies by polygon (UV density)" bug in `NEXT_STEPS.md`.
+  _Revert target: `v1.2`._
 - **v1.2** — bug fixes. (1) View/compare **exit buttons** restyled to a prominent solid
   red ✕ button (`#cmp-exit`/`#view-exit`). (2) **Paint intensity bug**: the stroke layer
   (`cvS`) is now a full-opacity coverage mask so overlaps within one stroke union instead
