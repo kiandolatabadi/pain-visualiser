@@ -1,6 +1,6 @@
 # Intended Purpose & Regulatory Positioning
 
-**Product:** Pain Visualiser
+**Product:** Algora
 **Manufacturer / author:** Kian Dolatabadi
 **Document status:** Manufacturer self-assessment — v1.0. This is the author's stated
 position and rationale; it is **not** a determination by a competent authority or
@@ -12,7 +12,7 @@ consultant before any clinical deployment or commercial placement on the market.
 
 ## 1. Purpose of this document
 
-To state, clearly and in advance, **what Pain Visualiser is intended to do**, who is
+To state, clearly and in advance, **what Algora is intended to do**, who is
 meant to use it, and why — on the basis of that intended purpose — the author's
 position is that it is a **non-diagnostic communication aid** and does **not**
 qualify as medical device software (MDSW) under the MDR. Regulatory qualification
@@ -23,7 +23,7 @@ product may and may not make.
 
 ## 2. Product description
 
-Pain Visualiser is a browser-based tool in which:
+Algora is a browser-based tool in which:
 
 - a patient selects, from a fixed set of animations, the one that best matches how
   their pain *feels*, and paints it onto a 3D body map to show **where** and **how
@@ -41,7 +41,7 @@ software screens for, or identifies, any condition.
 
 ## 3. Intended purpose (formal statement)
 
-> Pain Visualiser is a **language-independent communication aid** that lets a person
+> Algora is a **language-independent communication aid** that lets a person
 > express the **character, location, and intensity of their own pain**, and lets a
 > healthcare professional **view, record, and compare** that self-report over time.
 >
@@ -107,7 +107,7 @@ The author's position, on the intended purpose above:
    medical devices; digitising the capture and display does not, by itself, change
    that.
 
-On this basis the author's position is that Pain Visualiser is a **general
+On this basis the author's position is that Algora is a **general
 communication aid outside the scope of the MDR**. Qualification is fact-specific and
 the burden of justification rests on the manufacturer; this position must be
 **confirmed by a regulatory expert** and re-assessed if the intended purpose or
@@ -155,7 +155,7 @@ one of them may create a medical purpose and pull the product into MDSW/MDR scop
 
 ## 9. Limitations and disclaimer
 
-Pain Visualiser is an **experimental communication aid**. It is **not a medical
+Algora is an **experimental communication aid**. It is **not a medical
 device**, is not clinically validated, and must not be used as the basis for any
 diagnosis or treatment decision. It is provided for **evaluation and research** under
 the terms of `LICENSE` and `TERMS.md`.

@@ -1,12 +1,12 @@
 /*
- * Pain Visualiser service worker.
+ * Algora service worker.
  * Copyright © 2026 Kian Dolatabadi. All rights reserved.
  * Proprietary software — evaluation use only. See LICENSE and TERMS.md.
  */
-const CACHE_NAME = 'pain-visualiser-v1.0';
+const CACHE_NAME = 'algora-v1.0';
 
 const PRECACHE_URLS = [
-  './pain-visualiser.html',
+  './algora.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',

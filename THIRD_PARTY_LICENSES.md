@@ -1,6 +1,6 @@
 # Third-party licences
 
-Pain Visualiser's own code is **proprietary — all rights reserved** (see
+Algora's own code is **proprietary — all rights reserved** (see
 [`LICENSE`](./LICENSE)). It bundles the following third-party components, which
 keep their own licences.
 

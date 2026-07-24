@@ -1,8 +1,8 @@
 {
-  "name": "Pain Visualiser",
-  "short_name": "Pain Vis",
-  "description": "3D body map for recording and comparing patient pain points",
-  "start_url": "./pain-visualiser.html",
+  "name": "Algora",
+  "short_name": "Algora",
+  "description": "Language-free pain communication — a patient paints how their pain feels onto a 3D body map.",
+  "start_url": "./algora.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

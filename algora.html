@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <!--
-    Pain Visualiser — language-free pain communication between patient and clinician.
+    Algora — language-free pain communication between patient and clinician.
     Copyright © 2026 Kian Dolatabadi. All rights reserved.
     Proprietary software — evaluation use only. See LICENSE and TERMS.md.
     No copying, redistribution, hosting, or derivative works without written permission.
@@ -10,7 +10,7 @@
   -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-  <title>Pain Visualiser</title>
+  <title>Algora</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#1a4fa0" id="theme-color-meta">
   <link rel="icon" href="./icons/icon-192.png">
@@ -18,7 +18,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Pain Vis">
+  <meta name="apple-mobile-web-app-title" content="Algora">
   <style>
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 
@@ -1080,7 +1080,7 @@
     </button>
     <div id="cards-panel">
       <header>
-        <h1 data-i18n="appTitle">Pain Visualiser</h1>
+        <h1 data-i18n="appTitle">Algora</h1>
         <p data-i18n="appSubtitle">Find the animation that best matches your pain — then paint where you feel it on the body.</p>
       </header>
 
@@ -1586,7 +1586,7 @@ window.currentLanguage = 'en';
 
 window.I18N = {
   en: {
-    appTitle: 'Pain Visualiser',
+    appTitle: 'Algora',
     appSubtitle: 'Find the animation that best matches your pain — then paint where you feel it on the body.',
     sectionRhythmic: 'Rhythmic', sectionRhythmicSub: 'Cyclic — hold to change rate',
     sectionContinuous: 'Continuous', sectionContinuousSub: 'Always present',
@@ -1625,7 +1625,7 @@ window.I18N = {
     },
   },
   fr: {
-    appTitle: 'Visualiseur de Douleur',
+    appTitle: 'Algora',
     appSubtitle: "Trouvez l'animation qui correspond le mieux à votre douleur, puis peignez-la sur le corps.",
     sectionRhythmic: 'Rythmique', sectionRhythmicSub: 'Cyclique — maintenez pour changer le rythme',
     sectionContinuous: 'Continue', sectionContinuousSub: 'Toujours présente',
@@ -3410,7 +3410,7 @@ document.getElementById('pp-export').addEventListener('click',async()=>{
   const blob=new Blob([JSON.stringify(pts,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download=`pain-visualiser-backup-${todayStr()}.json`;
+  a.download=`algora-backup-${todayStr()}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(a.href);
 });

@@ -1,6 +1,6 @@
 # Terms of Use
 
-**Pain Visualiser** ("the App") is provided by Kian Dolatabadi ("the Author").
+**Algora** ("the App") is provided by Kian Dolatabadi ("the Author").
 By accessing or using the App you agree to these Terms. If you do not agree, do
 not use the App.
 

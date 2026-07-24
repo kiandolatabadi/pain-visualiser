@@ -1,4 +1,4 @@
-# Pain Visualiser
+# Algora
 
 A language-free, interactive tool for pain communication between patient and clinician.
 The core premise: if an animation IS the pain, no translation is needed.
@@ -7,7 +7,7 @@ The core premise: if an animation IS the pain, no translation is needed.
 > screening tool, and **not** a medical device. It records and shows what the patient
 > expresses; the clinician interprets. See [Intended Purpose & Regulatory Positioning](./INTENDED_USE.md).
 
-**[Live demo →](https://kiandolatabadi.github.io/pain-visualiser/)**
+**[Live demo →](https://kiandolatabadi.github.io/algora/)**
 
 ---
 
@@ -82,7 +82,7 @@ Patients panel to move or back up data.
 
 ## Running it locally
 
-Double-click **`Launch Pain Visualiser.command`** — it starts a local static server and opens the app
+Double-click **`Launch Algora.command`** — it starts a local static server and opens the app
 in Chrome. (A local server is required because the browser blocks loading local `.glb` files directly
 over `file://`.)
 
@@ -95,7 +95,7 @@ To stop it, close the Terminal window it opens.
 > **What this section is (and isn't).** The instruments and terminology below are the
 > **evidence base for *why* pain *quality* matters** and the **source of the descriptor
 > vocabulary** used to name the animations. They are design provenance — not a claim
-> that Pain Visualiser screens, classifies, or diagnoses anything. The tool records and
+> that Algora screens, classifies, or diagnoses anything. The tool records and
 > communicates a patient's own self-report; it does not perform assessment. See
 > [`INTENDED_USE.md`](./INTENDED_USE.md).
 
@@ -117,7 +117,7 @@ Source: Dworkin RH et al. Pain. 2009 Apr;144(1-2):35-42. PMID 19356853
 A validated neuropathic-pain screening *questionnaire*; its 7 sensory items are a
 source for the sensory animations here:
 burning, tingling/prickling, light touch, electric shock, cold/heat, numbness, slight pressure.
-(painDETECT is the validated screening instrument — Pain Visualiser is not; it only
+(painDETECT is the validated screening instrument — Algora is not; it only
 borrows the descriptor vocabulary.)
 
 ### Descriptor source — DN4 (Bouhassira et al., 2005)
@@ -277,13 +277,13 @@ The original brief called for bilingual labels. This was revised because:
 
 ## Files
 
-- `pain-visualiser.html` — the entire app: pain-type animation cards, 3D body map, patient/session
+- `algora.html` — the entire app: pain-type animation cards, 3D body map, patient/session
   storage and UI, comparison mode
-- `index.html` — redirects the bare site root to `pain-visualiser.html`
+- `index.html` — redirects the bare site root to `algora.html`
 - `vendor/three/` — Three.js + GLTFLoader/OrbitControls, vendored locally so the app runs fully offline
 - `male_body.glb`, `low_poly_female_body__teeth__tongue_lp.glb` — 3D body models (see Credits)
 - `manifest.json`, `sw.js`, `icons/` — PWA install + offline support
-- `Launch Pain Visualiser.command` — double-click launcher for local use on macOS
+- `Launch Algora.command` — double-click launcher for local use on macOS
 - `LICENSE` — proprietary licence (evaluation use only) for this project's code
 - `TERMS.md` — terms of use
 - `INTENDED_USE.md` — intended purpose & regulatory positioning (non-diagnostic communication aid)
