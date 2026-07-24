@@ -3,7 +3,7 @@
  * Copyright © 2026 Kian Dolatabadi. All rights reserved.
  * Proprietary software — evaluation use only. See LICENSE and TERMS.md.
  */
-const CACHE_NAME = 'algora-v1.1';
+const CACHE_NAME = 'algora-v1.1.1';
 
 const PRECACHE_URLS = [
   './algora.html',

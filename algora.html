@@ -1191,7 +1191,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">© 2026 Kian Dolatabadi · v1.1</div>
+<div id="app-version">© 2026 Kian Dolatabadi · v1.1.1</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -1952,15 +1952,37 @@ const cardObserver = new IntersectionObserver((entries)=>{
 }, { rootMargin:'120px', threshold:0 });
 for(const e of allFx) cardObserver.observe(e.card);
 
-(function loop(){
+/* Cap preview animation to ~30fps instead of the display refresh rate. The
+   previews are ambient background art, not interaction — running them at
+   60/120Hz was needless CPU. 30fps halves (or quarters, on ProMotion) the
+   per-preview cost with no perceptible loss. Single knob: raise to 60 for
+   livelier motion, lower for even less load. (FX advance by integer ticks,
+   so a lower rate reads as a calmer/slower pulse, never as jank.) */
+const PREVIEW_FPS      = 30;
+const PREVIEW_INTERVAL = 1000 / PREVIEW_FPS;
+let   lastPreviewTs    = 0;
+
+/* prefers-reduced-motion: let each preview animate just long enough to form
+   a representative frame, then hold that frame — zero ongoing CPU, but no
+   blank/black frozen cards. Live-reactive: toggling the OS setting resumes
+   or freezes previews without a reload. */
+const reduceMotion  = matchMedia('(prefers-reduced-motion: reduce)');
+const SETTLE_TICKS  = 90;
+
+function loop(ts){
   requestAnimationFrame(loop);
   if(document.hidden) return;
+  if(ts - lastPreviewTs < PREVIEW_INTERVAL) return;
+  lastPreviewTs = ts;
+  const rm = reduceMotion.matches;
   for(const e of allFx){
     if(!e.visible || e.card.classList.contains('faded')) continue;
+    if(rm && e.fx.t >= SETTLE_TICKS) continue;   /* settled → held static */
     try{ e.fx.tick(); }
     catch(err){ logErr(`TICK ${e.id}`,err); e.card.classList.add('err'); }
   }
-})();
+}
+requestAnimationFrame(loop);
 </script>
 
 <!-- ================================================================
