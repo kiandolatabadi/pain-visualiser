@@ -766,12 +766,16 @@
     #cmp-label-b { font-weight:600; color:var(--accent-amber); }
     .cmp-vs { color:var(--dim); font-size:0.65rem; }
     #cmp-exit {
-      margin-left:auto; padding:0.24rem 0.72rem; font-size:0.66rem; font-weight:600;
-      border:1px solid var(--border); border-radius:20px;
-      background:var(--input-bg); cursor:pointer; color:var(--dim);
-      transition:all 0.15s;
+      margin-left:auto; flex-shrink:0;
+      display:inline-flex; align-items:center; gap:0.4rem;
+      padding:0.45rem 1.05rem; font-size:0.8rem; font-weight:700;
+      border:none; border-radius:22px;
+      background:var(--danger); color:#fff; cursor:pointer;
+      box-shadow:0 2px 9px color-mix(in srgb, var(--danger) 45%, transparent);
+      transition:transform 0.12s, box-shadow 0.15s, background 0.15s;
     }
-    #cmp-exit:hover { color:var(--danger); border-color:var(--danger); background:color-mix(in srgb, var(--danger) 12%, transparent); }
+    #cmp-exit::before { content:'\2715'; font-size:0.82rem; font-weight:700; line-height:1; }
+    #cmp-exit:hover { background:color-mix(in srgb, var(--danger) 86%, #000); box-shadow:0 3px 13px color-mix(in srgb, var(--danger) 55%, transparent); transform:translateY(-1px); }
     #cmp-divider {
       position:absolute; left:calc(50% - 1px); top:0; bottom:0;
       width:2px; background:var(--border); pointer-events:none;
@@ -790,12 +794,16 @@
     #view-bar.hidden { display:none; }
     #view-label { font-weight:600; color:var(--accent-blue); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #view-exit {
-      margin-left:auto; padding:0.24rem 0.72rem; font-size:0.66rem; font-weight:600;
-      border:1px solid var(--border); border-radius:20px;
-      background:var(--input-bg); cursor:pointer; color:var(--dim); flex-shrink:0;
-      transition:all 0.15s;
+      margin-left:auto; flex-shrink:0;
+      display:inline-flex; align-items:center; gap:0.4rem;
+      padding:0.45rem 1.05rem; font-size:0.8rem; font-weight:700;
+      border:none; border-radius:22px;
+      background:var(--danger); color:#fff; cursor:pointer;
+      box-shadow:0 2px 9px color-mix(in srgb, var(--danger) 45%, transparent);
+      transition:transform 0.12s, box-shadow 0.15s, background 0.15s;
     }
-    #view-exit:hover { color:var(--danger); border-color:var(--danger); background:color-mix(in srgb, var(--danger) 12%, transparent); }
+    #view-exit::before { content:'\2715'; font-size:0.82rem; font-weight:700; line-height:1; }
+    #view-exit:hover { background:color-mix(in srgb, var(--danger) 86%, #000); box-shadow:0 3px 13px color-mix(in srgb, var(--danger) 55%, transparent); transform:translateY(-1px); }
     /* In view mode the pain menu and paint controls are gone — review only. */
     body.view-mode #cards-wrapper,
     body.view-mode #paint-bar,
@@ -912,8 +920,9 @@
         max-width:28vw; overflow:hidden; text-overflow:ellipsis;
         white-space:nowrap; display:inline-block;
       }
-      #cmp-exit { font-size:0; padding:0.4rem 0.55rem; }
-      #cmp-exit::before { content:'\2715'; font-size:0.75rem; }
+      /* Phone: hide the text label but keep the prominent red ✕ button. */
+      #cmp-exit, #view-exit { font-size:0; gap:0; padding:0.5rem 0.72rem; }
+      #cmp-exit::before, #view-exit::before { font-size:0.9rem; }
 
       /* Gender toggle moves off-center to the right edge so it can
          never overlap the Patients button pinned at the left — on a
@@ -1191,7 +1200,7 @@
 <div id="hover-tip"></div>
 <div id="cursor-ring"></div>
 <div id="el"></div>
-<div id="app-version">© 2026 Kian Dolatabadi · v1.1.1</div>
+<div id="app-version">© 2026 Kian Dolatabadi · v1.2</div>
 
 <!-- ================================================================
      ANIMATIONS + CARDS
@@ -2361,16 +2370,6 @@ let intensity   = 5;
 let strokeDepth = 'skin';   /* depth mode captured at stroke start */
 let strokeBr    = 20;       /* brush radius (tex px) for current stroke */
 
-/* Depth controls visual style only — brush size stays constant.
-   stop  = where radial gradient begins fading (0=edge harsh, 1=soft from centre)
-   alpha = max opacity multiplier for this layer                                  */
-const DEPTH_CFG = {
-  skin:     { stop:0.50, alpha:1.00 },   /* sharp-edged, fully opaque            */
-  sub:      { stop:0.70, alpha:0.88 },   /* softer edge                          */
-  muscular: { stop:0.52, alpha:0.82 },   /* hatched texture                      */
-  visceral: { stop:0.88, alpha:0.55 },   /* very diffuse, ghostly                */
-};
-
 /* Brush radius in texture pixels — depth does NOT change size */
 const BR_SCALE = TEX_SIZE / 256;   /* 512/256=2: halves the painted radius at every slider position (was /128) */
 
@@ -2387,37 +2386,21 @@ function hexToRgba(hex, a){
 }
 
 function paintCircle(ctx, cx, cy, br, r, g, b, depth){
-  /* Paint fill only — patterns are overlaid separately in buildHatchOverlay
-     so they are always visible regardless of how much you drag. */
-  const cfg = DEPTH_CFG[depth];
+  /* The stroke layer (cvS) is a COVERAGE MASK, not a pre-shaded blob. Each dab
+     is stamped at full opacity, so overlapping dabs within ONE stroke form a
+     union instead of compounding their alpha. Previously the soft gradient
+     stamps were source-over'd on every pointermove, so dragging back over the
+     same spot kept darkening it past the chosen level. The single intensity
+     alpha is applied later, once, in rebuildDisplay()/bakeStroke(), which makes
+     intensity a hard ceiling — re-tracing a spot can no longer push it beyond
+     the set intensity. Depth is conveyed by the hatch/stipple overlay
+     (buildHatchOverlay), not by fill opacity, so a flat fill loses no depth
+     information. The arc clip anti-aliases the edge. `depth` is kept in the
+     signature for callers/compat. */
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, br, 0, TAU); ctx.clip();
-
-  if(depth === 'skin'){
-    const gr = ctx.createRadialGradient(cx,cy,0, cx,cy,br);
-    gr.addColorStop(0,        `rgba(${r},${g},${b},1)`);
-    gr.addColorStop(cfg.stop, `rgba(${r},${g},${b},0.65)`);
-    gr.addColorStop(1,        `rgba(${r},${g},${b},0)`);
-    ctx.fillStyle = gr; ctx.fillRect(cx-br, cy-br, br*2, br*2);
-
-  } else if(depth === 'sub'){
-    const gr = ctx.createRadialGradient(cx,cy,0, cx,cy,br);
-    gr.addColorStop(0,        `rgba(${r},${g},${b},1)`);
-    gr.addColorStop(cfg.stop, `rgba(${r},${g},${b},0.55)`);
-    gr.addColorStop(1,        `rgba(${r},${g},${b},0)`);
-    ctx.fillStyle = gr; ctx.fillRect(cx-br, cy-br, br*2, br*2);
-
-  } else if(depth === 'muscular'){
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.fillRect(cx-br, cy-br, br*2, br*2);
-
-  } else if(depth === 'visceral'){
-    const gr = ctx.createRadialGradient(cx,cy,0, cx,cy,br);
-    gr.addColorStop(0,        `rgba(${r},${g},${b},1)`);
-    gr.addColorStop(cfg.stop, `rgba(${r},${g},${b},0.4)`);
-    gr.addColorStop(1,        `rgba(${r},${g},${b},0)`);
-    ctx.fillStyle = gr; ctx.fillRect(cx-br, cy-br, br*2, br*2);
-  }
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(cx - br, cy - br, br * 2, br * 2);
   ctx.restore();
 }
 
